@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { encodeExamId } from "@/utils/secureId";
+import { isExamRegistrationClosed } from "@/utils/examDates";
 
 interface Exam {
   id: number;
@@ -153,9 +154,15 @@ export default function ExamDetailPage() {
                 <span className="text-[10px] font-mono text-zinc-600 font-medium bg-white px-2.5 py-1 rounded border border-zinc-200">
                   TOKEN: {encodeExamId(exam.id)}
                 </span>
-                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
-                  Live Proctored
-                </span>
+                {isExamRegistrationClosed(exam) ? (
+                  <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded border border-zinc-200">
+                    Registration Closed
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                    Live Proctored
+                  </span>
+                )}
               </div>
             </div>
 
@@ -272,7 +279,7 @@ export default function ExamDetailPage() {
                   {/* Clean Action Suite Under Banner */}
                   <div className="space-y-2 pt-0.5">
                     {/* Primary Registration Action */}
-                    {exam.registration_closed ? (
+                    {isExamRegistrationClosed(exam) ? (
                       <div className="w-full py-2.5 px-4 bg-zinc-100 border border-zinc-300 text-zinc-500 font-semibold text-xs rounded-md text-center">
                         Registration Closed
                       </div>
@@ -318,7 +325,9 @@ export default function ExamDetailPage() {
 
                     {/* Clean Notice */}
                     <p className="text-[11px] text-zinc-500 font-normal text-center pt-0.5">
-                      Proctored Assessment • Instant Hall Ticket Issued
+                      {isExamRegistrationClosed(exam)
+                        ? "Registration window has concluded for this examination"
+                        : "Proctored Assessment • Instant Hall Ticket Issued"}
                     </p>
                   </div>
                 </div>

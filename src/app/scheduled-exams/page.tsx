@@ -20,6 +20,7 @@ interface Exam {
 }
 
 import { encodeExamId } from "@/utils/secureId";
+import { isExamDatePassed, isExamRegistrationClosed } from "@/utils/examDates";
 
 type TabFilter = "all" | "upcoming" | "past";
 
@@ -68,35 +69,8 @@ export default function ScheduledExams() {
     fetchExams();
   }, []);
 
-  const isUpcomingExam = (examDateStr: string): boolean => {
-    if (!examDateStr) return true;
-    try {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      // Support ranges like "18-10-2026 to 19-10-2026" by checking the end date or start date
-      const parts = examDateStr.split("·")[0].split(/\s+(?:to|-)\s+/i);
-      const rawTarget = (parts[parts.length - 1] || parts[0]).trim();
-      
-      const ddmmyyyy = rawTarget.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
-      let examDate: Date;
-      if (ddmmyyyy) {
-        examDate = new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
-      } else {
-        examDate = new Date(rawTarget);
-      }
-
-      if (!isNaN(examDate.getTime())) {
-        examDate.setHours(23, 59, 59, 999);
-        return examDate.getTime() >= now.getTime();
-      }
-    } catch {
-      return true;
-    }
-    return true;
-  };
-
-  const upcomingCount = exams.filter((e) => isUpcomingExam(e.date)).length;
-  const pastCount = exams.filter((e) => !isUpcomingExam(e.date)).length;
+  const upcomingCount = exams.filter((e) => !isExamDatePassed(e.date, e.time)).length;
+  const pastCount = exams.filter((e) => isExamDatePassed(e.date, e.time)).length;
 
   const filteredExams = exams.filter((e) => {
     const matchesSearch =
@@ -106,7 +80,7 @@ export default function ScheduledExams() {
 
     if (!matchesSearch) return false;
 
-    const isUpcoming = isUpcomingExam(e.date);
+    const isUpcoming = !isExamDatePassed(e.date, e.time);
     if (activeTab === "upcoming") return isUpcoming;
     if (activeTab === "past") return !isUpcoming;
     return true;
@@ -237,11 +211,11 @@ export default function ScheduledExams() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredExams.map((exam) => {
-              const isUpcoming = isUpcomingExam(exam.date);
+              const isClosed = isExamRegistrationClosed(exam);
               return (
                 <div
                   key={exam.id}
-                  className="bg-white border border-zinc-200/90 rounded-md shadow-xs hover:shadow-md hover:border-[#E61E32]/25 transition-all duration-200 overflow-hidden flex flex-col"
+                  className="bg-white border border-zinc-200/90 rounded-md overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col group"
                 >
                   {/* Cover Image (1200x1200px 1:1 Square Frame) */}
                   <div className="w-full aspect-square relative overflow-hidden bg-zinc-900 shrink-0">
@@ -276,14 +250,13 @@ export default function ScheduledExams() {
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      {isUpcoming ? (
-                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded-md shadow-xs tracking-wider uppercase flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          Upcoming
+                      {!isClosed ? (
+                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded shadow-xs tracking-wider uppercase">
+                          Registration Open
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold bg-zinc-800/90 text-zinc-200 px-2.5 py-1 rounded-md shadow-xs tracking-wider uppercase">
-                          Past Exam
+                        <span className="text-[10px] font-bold bg-zinc-800/90 text-zinc-200 px-2.5 py-1 rounded shadow-xs tracking-wider uppercase">
+                          Closed
                         </span>
                       )}
                     </div>
