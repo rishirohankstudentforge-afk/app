@@ -243,21 +243,28 @@ export default function ScheduledExams() {
                         (e.target as HTMLImageElement).src = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
                       }}
                     />
-                    <div className="absolute top-3 left-3 flex items-center gap-2">
-                      <span className="text-[11px] font-semibold bg-white/95 text-zinc-800 px-2.5 py-1 rounded-md border border-zinc-200/90 shadow-xs">
-                        {exam.company_name}
-                      </span>
+                    {/* Modern Glassmorphic Pill Badges */}
+                    <div className="absolute top-3 left-3">
+                      <div className="glass-button-wrap rounded-full">
+                        <span className="glass-pill-white text-[10px] md:text-[11px] font-semibold px-3 py-1 rounded-full select-none tracking-tight">
+                          {exam.company_name}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="absolute top-3 right-3">
                       {!isClosed ? (
-                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded shadow-xs tracking-wider uppercase">
-                          Registration Open
-                        </span>
+                        <div className="glass-button-wrap rounded-full">
+                          <span className="glass-pill-emerald text-[9px] md:text-[10px] font-bold px-3 py-1 rounded-full select-none tracking-wider uppercase">
+                            Registration Open
+                          </span>
+                        </div>
                       ) : (
-                        <span className="text-[10px] font-bold bg-zinc-800/90 text-zinc-200 px-2.5 py-1 rounded shadow-xs tracking-wider uppercase">
-                          Closed
-                        </span>
+                        <div className="glass-button-wrap rounded-full">
+                          <span className="glass-pill-zinc text-[9px] md:text-[10px] font-bold px-3 py-1 rounded-full select-none tracking-wider uppercase">
+                            Closed
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>

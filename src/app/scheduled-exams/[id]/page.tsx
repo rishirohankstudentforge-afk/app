@@ -151,17 +151,23 @@ export default function ExamDetailPage() {
                 <span className="font-semibold text-zinc-900 truncate max-w-[280px] sm:max-w-none">{exam.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-zinc-600 font-medium bg-white px-2.5 py-1 rounded border border-zinc-200">
-                  TOKEN: {encodeExamId(exam.id)}
-                </span>
+                <div className="glass-button-wrap rounded-full">
+                  <span className="glass-pill-white text-[10px] font-mono font-semibold px-3 py-1 rounded-full select-none">
+                    TOKEN: {encodeExamId(exam.id)}
+                  </span>
+                </div>
                 {isExamRegistrationClosed(exam) ? (
-                  <span className="text-[10px] font-medium text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded border border-zinc-200">
-                    Registration Closed
-                  </span>
+                  <div className="glass-button-wrap rounded-full">
+                    <span className="glass-pill-zinc text-[10px] font-semibold px-3 py-1 rounded-full select-none tracking-wider uppercase">
+                      Registration Closed
+                    </span>
+                  </div>
                 ) : (
-                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
-                    Live Proctored
-                  </span>
+                  <div className="glass-button-wrap rounded-full">
+                    <span className="glass-pill-emerald text-[10px] font-semibold px-3 py-1 rounded-full select-none tracking-wider uppercase">
+                      Live Proctored
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
