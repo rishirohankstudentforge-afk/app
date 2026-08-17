@@ -145,7 +145,7 @@ export default function ExamDetailPage() {
         ) : (
           <div className="space-y-5 animate-in fade-in duration-300">
 
-            {/* Breadcrumb Navigation & Copy Link Button */}
+            {/* Breadcrumb Navigation & Top Badges */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-500">
               <div className="flex items-center gap-2">
                 <Link href="/scheduled-exams" className="hover:text-zinc-900 transition-colors font-medium">Scheduled Exams</Link>
@@ -153,17 +153,12 @@ export default function ExamDetailPage() {
                 <span className="font-semibold text-zinc-900 truncate max-w-[280px] sm:max-w-none">{exam.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl border border-zinc-200/90 transition-all cursor-pointer shadow-2xs"
-                >
-                  <svg className="w-3.5 h-3.5 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <span>{copied ? "Link Copied!" : "Copy Exam Link"}</span>
-                </button>
-                <span className="text-[10px] font-mono text-zinc-500 font-semibold bg-white px-2.5 py-1.5 rounded-xl border border-zinc-200/90 shadow-2xs">
+                <span className="text-[10px] font-mono text-zinc-500 font-semibold bg-white px-2.5 py-1.5 rounded-md border border-zinc-200/90 shadow-2xs">
                   TOKEN: {encodeExamId(exam.id)}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Proctoring Active
                 </span>
               </div>
             </div>
@@ -171,7 +166,7 @@ export default function ExamDetailPage() {
             {/* 2-Column Responsive Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              {/* Left Column (Primary Info - 7/12 cols on desktop) */}
+              {/* Left Column (Primary Syllabus & Instructions - 7/12 cols on desktop) */}
               <div className="lg:col-span-7 space-y-5">
                 
                 {/* Header Title Card */}
@@ -261,60 +256,14 @@ export default function ExamDetailPage() {
                   </div>
                 )}
 
-                {/* Candidate Action Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-rounded text-xs text-[#E61E32]">how_to_reg</span>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Candidate Registration Portal</h2>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Real-Time Proctored</span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 items-center pt-1">
-                    <Link
-                      href="/register/edit"
-                      className="flex-1 sm:flex-none px-4 py-2.5 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-semibold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                    >
-                      Edit Registration
-                    </Link>
-
-                    {exam.show_login && (
-                      <Link
-                        href={`/exam-login?examId=${exam.id}`}
-                        className="flex-1 sm:flex-none px-5 py-2.5 border border-[#E61E32] text-[#E61E32] hover:bg-red-50 font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                      >
-                        Enter Exam →
-                      </Link>
-                    )}
-
-                    {exam.registration_closed ? (
-                      <span className="flex-1 sm:flex-none px-5 py-2.5 bg-zinc-100 text-zinc-400 font-semibold text-xs rounded-md cursor-not-allowed text-center inline-block">
-                        Registration Closed
-                      </span>
-                    ) : (
-                      <Link
-                        href={`/register?examId=${exam.id}`}
-                        className="flex-1 sm:flex-none px-6 py-2.5 bg-[#E61E32] hover:bg-[#d01729] text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                      >
-                        Register for Exam
-                      </Link>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-zinc-400">
-                    {exam.show_login
-                      ? 'Already registered? Click "Enter Exam" to authenticate with your hall ticket.'
-                      : "Exam login entry will open prior to the scheduled assessment start time."}
-                  </p>
-                </div>
-
               </div>
 
-              {/* Right Column (Sidebar - 5/12 cols on desktop) */}
+              {/* Right Column (Sidebar with Banner Image & All Action Buttons - 5/12 cols on desktop) */}
               <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
                 
-                {/* 1200x1200px High Resolution Cover Image Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-4 shadow-xs space-y-3">
+                {/* Banner & Action Hub Card */}
+                <div className="bg-white border border-zinc-200/90 rounded-md p-4 shadow-xs space-y-3.5">
+                  {/* High Resolution Cover Image */}
                   <div
                     className="w-full aspect-square rounded-md overflow-hidden border border-zinc-200/80 bg-zinc-900 shadow-xs relative group cursor-pointer"
                     onClick={() => window.open(coverSrc, "_blank")}
@@ -334,15 +283,60 @@ export default function ExamDetailPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleCopyLink}
-                    className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-md transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-                  >
-                    <svg className="w-4 h-4 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <span>{copied ? "Link Copied to Clipboard!" : "Copy Exam Detail Link"}</span>
-                  </button>
+                  {/* Comprehensive Action Suite Directly Under Banner */}
+                  <div className="space-y-2 pt-1">
+                    {/* Primary Registration Action */}
+                    {exam.registration_closed ? (
+                      <div className="w-full py-3 bg-zinc-100 border border-zinc-200 text-zinc-400 font-bold text-xs rounded-md text-center">
+                        Registration Closed
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/register?examId=${exam.id}`}
+                        className="w-full py-3 bg-[#E61E32] hover:bg-[#d01729] active:scale-[0.99] text-white font-bold text-xs md:text-sm rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                      >
+                        <span className="material-symbols-rounded text-sm">how_to_reg</span>
+                        <span>Register for Exam →</span>
+                      </Link>
+                    )}
+
+                    {/* Enter Exam Portal (if login allowed) */}
+                    {exam.show_login && (
+                      <Link
+                        href={`/exam-login?examId=${exam.id}`}
+                        className="w-full py-2.5 border-2 border-[#E61E32] text-[#E61E32] hover:bg-red-50 active:scale-[0.99] font-bold text-xs rounded-md shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                      >
+                        <span className="material-symbols-rounded text-sm">login</span>
+                        <span>Enter Exam Portal →</span>
+                      </Link>
+                    )}
+
+                    {/* Sub Actions: Edit Registration & Copy Link */}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <Link
+                        href="/register/edit"
+                        className="py-2.5 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 border border-zinc-200/90 text-zinc-700 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center shadow-2xs"
+                      >
+                        <span className="material-symbols-rounded text-xs text-zinc-500">edit_document</span>
+                        <span>Edit Details</span>
+                      </Link>
+
+                      <button
+                        onClick={handleCopyLink}
+                        className="py-2.5 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 text-white font-bold text-xs rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                      >
+                        <svg className="w-3.5 h-3.5 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span>{copied ? "Copied!" : "Copy Link"}</span>
+                      </button>
+                    </div>
+
+                    {/* Notice */}
+                    <p className="text-[10px] text-zinc-400 text-center pt-1">
+                      🔒 Official Proctored Examination • Instant Hall Ticket Issued
+                    </p>
+                  </div>
                 </div>
 
                 {/* Key Metrics Stack Card */}
@@ -386,17 +380,6 @@ export default function ExamDetailPage() {
           </div>
         )}
       </main>
-
-      <footer className="py-8 border-t border-zinc-200/80 bg-white text-center text-xs text-zinc-500 font-medium">
-        © 2026 Redlix Secure. Smart Proctored Examination System.
-      </footer>
-
-      {copied && (
-        <div className="fixed bottom-6 right-6 z-50 bg-zinc-950 text-white text-xs font-semibold px-4 py-3 rounded-md shadow-xl border border-zinc-800 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-          <span>✓ Exam detail link &amp; cover preview copied to clipboard!</span>
-        </div>
-      )}
     </div>
   );
 }
