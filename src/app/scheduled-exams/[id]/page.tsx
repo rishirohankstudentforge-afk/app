@@ -84,6 +84,10 @@ export default function ExamDetailPage() {
   const coverSrc =
     (exam as any)?.company_logo && (exam as any).company_logo.startsWith("http")
       ? (exam as any).company_logo
+      : name.includes("business") || name.includes("bussiness")
+      ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+      : name.includes("sales")
+      ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
       : name.includes("technical")
       ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
       : name.includes("marketing")

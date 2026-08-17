@@ -156,6 +156,10 @@ function RegisterFormContent() {
   const coverSrc =
     (exam as any)?.company_logo && (exam as any).company_logo.startsWith("http")
       ? (exam as any).company_logo
+      : exam?.name?.toLowerCase().includes("business") || exam?.name?.toLowerCase().includes("bussiness")
+      ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+      : exam?.name?.toLowerCase().includes("sales")
+      ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
       : exam?.name?.toLowerCase().includes("technical")
       ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
       : exam?.name?.toLowerCase().includes("marketing")

@@ -33,6 +33,8 @@ import { MARKETING_QUESTIONS } from "./marketingQuestions";
 import { ANALYTICS_QUESTIONS } from "./analyticsQuestions";
 import { UIUX_QUESTIONS } from "./uiuxQuestions";
 import { TECHNICAL_QUESTIONS } from "./technicalQuestions";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "./businessAnalysisQuestions";
+import { SALES_MARKETING_QUESTIONS } from "./salesMarketingQuestions";
 
 interface CodeEditorProps {
   value: string;
@@ -649,6 +651,14 @@ export default function ExamSessionPage() {
           // Use the dedicated 50 Technical Wing question bank (15 Section A, 10 Section B, 25 Section C)
           loadedQuestions = TECHNICAL_QUESTIONS.map((q) => ({ ...q }));
           setTimeLeft(120 * 60);
+        } else if (examNameLower.includes("business") || examNameLower.includes("bussiness")) {
+          // Use the dedicated 50 MCQs Business Analysis Wing question bank
+          loadedQuestions = BUSINESS_ANALYSIS_QUESTIONS.map((q) => ({ ...q }));
+          setTimeLeft(180 * 60);
+        } else if (examNameLower.includes("sales")) {
+          // Use the dedicated 50 MCQs Sales and Marketing Wing question bank
+          loadedQuestions = SALES_MARKETING_QUESTIONS.map((q) => ({ ...q }));
+          setTimeLeft(180 * 60);
         } else if (examNameLower.includes("ui") || examNameLower.includes("ux")) {
           // Use the dedicated 50 MCQs UI & UX Wing question bank
           loadedQuestions = UIUX_QUESTIONS.map((q) => ({ ...q }));

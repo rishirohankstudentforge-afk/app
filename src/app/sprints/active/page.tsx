@@ -1,10 +1,11 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, ChevronRight, Play, AlertCircle, Maximize, Minimize, AlertTriangle } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import * as faceapi from "@vladmandic/face-api";
 
 // ---------- Language config ----------
 const LANGUAGES = [
@@ -78,11 +79,14 @@ function SprintActiveContent() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const modelsLoaded = useRef(false);
+  const faceApiRef = useRef<any>(null);
   const fsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const loadModels = async () => {
       try {
+        const faceapi = await import("@vladmandic/face-api");
+        faceApiRef.current = faceapi;
         await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
         modelsLoaded.current = true;
       } catch (e) {
@@ -343,8 +347,9 @@ function SprintActiveContent() {
               body: JSON.stringify({ id: participantId, latestSnapshot: b64 })
             });
             
-            if (modelsLoaded.current) {
+            if (modelsLoaded.current && faceApiRef.current && videoRef.current) {
               try {
+                const faceapi = faceApiRef.current;
                 const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions());
                 if (detections.length === 0) {
                   issueWarning("Face not detected in camera frame.");
@@ -393,9 +398,12 @@ function SprintActiveContent() {
   };
 
   
-  const calculateAndSaveProgress = async (currentResults, currentDrafts) => {
+  const calculateAndSaveProgress = async (
+    currentResults: Record<number, any>,
+    currentDrafts: Record<number, string>
+  ) => {
     let finalScore = 0;
-    Object.keys(currentResults).forEach(idx => {
+    Object.keys(currentResults).forEach((idx) => {
       const results = currentResults[Number(idx)];
       if (results && Array.isArray(results)) {
         finalScore += (results.filter((r) => r.status === "pass").length * 10);

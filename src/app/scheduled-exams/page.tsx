@@ -73,8 +73,18 @@ export default function ScheduledExams() {
     try {
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const datePart = examDateStr.split("·")[0].split(" - ")[0].trim();
-      const examDate = new Date(datePart);
+      // Support ranges like "18-10-2026 to 19-10-2026" by checking the end date or start date
+      const parts = examDateStr.split("·")[0].split(/\s+(?:to|-)\s+/i);
+      const rawTarget = (parts[parts.length - 1] || parts[0]).trim();
+      
+      const ddmmyyyy = rawTarget.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+      let examDate: Date;
+      if (ddmmyyyy) {
+        examDate = new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
+      } else {
+        examDate = new Date(rawTarget);
+      }
+
       if (!isNaN(examDate.getTime())) {
         examDate.setHours(23, 59, 59, 999);
         return examDate.getTime() >= now.getTime();
@@ -239,6 +249,10 @@ export default function ScheduledExams() {
                       src={
                         (exam as any).company_logo && (exam as any).company_logo.startsWith("http")
                           ? (exam as any).company_logo
+                          : exam.name.toLowerCase().includes("business") || exam.name.toLowerCase().includes("bussiness")
+                          ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+                          : exam.name.toLowerCase().includes("sales")
+                          ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
                           : exam.name.toLowerCase().includes("technical")
                           ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
                           : exam.name.toLowerCase().includes("marketing")

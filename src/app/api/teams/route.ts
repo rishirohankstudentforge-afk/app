@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const { name, hackathonId } = await req.json();
     if (!name || !hackathonId) {

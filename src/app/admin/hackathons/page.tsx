@@ -49,6 +49,10 @@ interface Hackathon {
   createdAt: string;
   joinCode?: string | null;
   isStarted?: boolean;
+  parentHackathonId?: string | null;
+  questions?: string | null;
+  logoUrl?: string | null;
+  location?: string | null;
 }
 
 interface Team {

@@ -39,6 +39,16 @@ import {
   TECHNICAL_ANSWER_KEY,
   gradeTechnicalFull
 } from "@/app/exam-session/technicalAnswerKey";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "@/app/exam-session/businessAnalysisQuestions";
+import {
+  BUSINESS_ANALYSIS_ANSWER_KEY,
+  gradeBusinessAnalysisFull
+} from "@/app/exam-session/businessAnalysisAnswerKey";
+import { SALES_MARKETING_QUESTIONS } from "@/app/exam-session/salesMarketingQuestions";
+import {
+  SALES_MARKETING_ANSWER_KEY,
+  gradeSalesMarketingFull
+} from "@/app/exam-session/salesMarketingAnswerKey";
 
 
 // Seedable random number generator for deterministic shuffling
@@ -489,12 +499,16 @@ export default function ResultsPage() {
                 const candidateExam = selectedExam || exams.find((e) => e.id === searchedCandidate.exam_id);
                 const examName = candidateExam?.name.toLowerCase() || "";
                 const isTechnical = examName.includes("technical");
+                const isBusinessAnalysis = examName.includes("business") || examName.includes("bussiness");
+                const isSalesMarketing = examName.includes("sales");
                 const isUIUX = examName.includes("ui") || examName.includes("ux");
                 const isAnalytics = examName.includes("analytics");
-                const isMarketing = examName.includes("marketing");
+                const isMarketing = examName.includes("marketing") && !isSalesMarketing;
                 const isTraining01 = examName.includes("redlix training exam 01");
                 const isPhase02 = examName.includes("redlix phase - 02") || examName.includes("final phase");
                 const techGrade = (isTechnical && searchedCandidate.answers) ? gradeTechnicalFull(searchedCandidate.answers) : null;
+                const baGrade = (isBusinessAnalysis && searchedCandidate.answers) ? gradeBusinessAnalysisFull(searchedCandidate.answers) : null;
+                const smGrade = (isSalesMarketing && searchedCandidate.answers) ? gradeSalesMarketingFull(searchedCandidate.answers) : null;
                 const uiuxGrade = (isUIUX && searchedCandidate.answers) ? gradeUIUXFull(searchedCandidate.answers) : null;
                 const analyticsGrade = (isAnalytics && searchedCandidate.answers) ? gradeAnalyticsFull(searchedCandidate.answers) : null;
                 const marketingGrade = (isMarketing && searchedCandidate.answers) ? gradeMarketingFull(searchedCandidate.answers) : null;
@@ -505,6 +519,10 @@ export default function ResultsPage() {
                 let isPass = false;
                 if (isTechnical) {
                   isPass = techGrade ? techGrade.isPass : false;
+                } else if (isBusinessAnalysis) {
+                  isPass = baGrade ? baGrade.isPass : false;
+                } else if (isSalesMarketing) {
+                  isPass = smGrade ? smGrade.isPass : false;
                 } else if (isUIUX) {
                   isPass = uiuxGrade ? uiuxGrade.isPass : false;
                 } else if (isAnalytics) {
@@ -602,6 +620,30 @@ export default function ResultsPage() {
                               </td>
                               <td className="px-4 py-3 text-center font-mono font-bold text-blue-700">
                                 {searchedCandidate.attempted && techGrade ? `${techGrade.secBMarks} / 20 pts` : "0 / 20 pts"}
+                              </td>
+                            </tr>
+                          </tbody>
+                        ) : isBusinessAnalysis ? (
+                          <tbody className="divide-y divide-zinc-200">
+                            <tr className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 py-3 border-r border-zinc-200 font-semibold text-zinc-700">Section A: Business Analysis MCQs (50 questions)</td>
+                              <td className="px-4 py-3 border-r border-zinc-200 text-center font-mono font-medium text-zinc-600">
+                                {searchedCandidate.attempted && baGrade ? `${baGrade.totalCorrect} / 50 correct (${baGrade.totalAttempted} / 50 attempted)` : "0 / 50"}
+                              </td>
+                              <td className="px-4 py-3 text-center font-mono font-bold text-green-700">
+                                {searchedCandidate.attempted && baGrade ? `${baGrade.totalMarks} / 100 pts (${baGrade.percentage}%)` : "0 / 100 pts"}
+                              </td>
+                            </tr>
+                          </tbody>
+                        ) : isSalesMarketing ? (
+                          <tbody className="divide-y divide-zinc-200">
+                            <tr className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 py-3 border-r border-zinc-200 font-semibold text-zinc-700">Section A: Sales and Marketing MCQs (50 questions)</td>
+                              <td className="px-4 py-3 border-r border-zinc-200 text-center font-mono font-medium text-zinc-600">
+                                {searchedCandidate.attempted && smGrade ? `${smGrade.totalCorrect} / 50 correct (${smGrade.totalAttempted} / 50 attempted)` : "0 / 50"}
+                              </td>
+                              <td className="px-4 py-3 text-center font-mono font-bold text-green-700">
+                                {searchedCandidate.attempted && smGrade ? `${smGrade.totalMarks} / 100 pts (${smGrade.percentage}%)` : "0 / 100 pts"}
                               </td>
                             </tr>
                           </tbody>

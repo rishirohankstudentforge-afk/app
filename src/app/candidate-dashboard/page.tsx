@@ -125,7 +125,11 @@ export default function CandidateDashboard() {
 
   const getExamCardImage = (examName: string) => {
     const nameLower = (examName || "").toLowerCase();
-    if (nameLower.includes("technical")) {
+    if (nameLower.includes("business") || nameLower.includes("bussiness")) {
+      return "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png";
+    } else if (nameLower.includes("sales")) {
+      return "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png";
+    } else if (nameLower.includes("technical")) {
       return "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
     } else if (nameLower.includes("marketing")) {
       return "https://ik.imagekit.io/dypkhqxip/marketing%20Wing.png";

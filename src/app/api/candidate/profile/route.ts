@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdminClient();
@@ -81,14 +82,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch Hackathons and Sprints via Prisma
-    const { prisma } = await import("@/lib/prisma");
     
+
     // Find all teams where this candidate is a member
     const allTeams = await prisma.team.findMany({
       orderBy: { createdAt: "desc" }
     });
 
-    const candidateTeams = allTeams.filter(t => {
+    const candidateTeams = allTeams.filter((t: any) => {
       try {
         const members = JSON.parse(t.members || "[]");
         return members.includes(candidate.email);
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    const hackathonIds = candidateTeams.map(t => t.hackathonId);
+    const hackathonIds = candidateTeams.map((t: any) => t.hackathonId);
 
     // Fetch the actual hackathons
     const hackathons = await prisma.hackathon.findMany({
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
     // Map the hackathons with their teams
     const hackathonsWithTeams = hackathons.map(h => ({
       ...h,
-      team: candidateTeams.find(t => t.hackathonId === h.id)
+      team: candidateTeams.find((t: any) => t.hackathonId === h.id)
     }));
 
     return NextResponse.json({

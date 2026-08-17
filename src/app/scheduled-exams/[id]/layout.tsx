@@ -42,6 +42,10 @@ export async function generateMetadata(
         const nameLower = examName.toLowerCase();
         if (targetExam.company_logo && targetExam.company_logo.startsWith("http")) {
           coverSrc = targetExam.company_logo;
+        } else if (nameLower.includes("business") || nameLower.includes("bussiness")) {
+          coverSrc = "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png";
+        } else if (nameLower.includes("sales")) {
+          coverSrc = "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png";
         } else if (nameLower.includes("technical")) {
           coverSrc = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
         } else if (nameLower.includes("marketing")) {
