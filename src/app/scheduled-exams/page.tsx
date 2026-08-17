@@ -243,28 +243,22 @@ export default function ScheduledExams() {
                         (e.target as HTMLImageElement).src = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
                       }}
                     />
-                    {/* Modern Glassmorphic Pill Badges */}
+                    {/* Transparent Glass Badges with Subtle Rounded Edges */}
                     <div className="absolute top-3 left-3">
-                      <div className="glass-button-wrap rounded-full">
-                        <span className="glass-pill-white text-[10px] md:text-[11px] font-semibold px-3 py-1 rounded-full select-none tracking-tight">
-                          {exam.company_name}
-                        </span>
-                      </div>
+                      <span className="text-[11px] font-semibold bg-white/90 text-zinc-900 px-2.5 py-1 rounded-md border border-white/70 shadow-xs backdrop-blur-md select-none">
+                        {exam.company_name}
+                      </span>
                     </div>
 
                     <div className="absolute top-3 right-3">
                       {!isClosed ? (
-                        <div className="glass-button-wrap rounded-full">
-                          <span className="glass-pill-emerald text-[9px] md:text-[10px] font-bold px-3 py-1 rounded-full select-none tracking-wider uppercase">
-                            Registration Open
-                          </span>
-                        </div>
+                        <span className="text-[11px] font-semibold bg-white/90 text-zinc-900 px-2.5 py-1 rounded-md border border-white/70 shadow-xs backdrop-blur-md select-none">
+                          Open
+                        </span>
                       ) : (
-                        <div className="glass-button-wrap rounded-full">
-                          <span className="glass-pill-zinc text-[9px] md:text-[10px] font-bold px-3 py-1 rounded-full select-none tracking-wider uppercase">
-                            Closed
-                          </span>
-                        </div>
+                        <span className="text-[11px] font-semibold bg-zinc-900/80 text-zinc-300 px-2.5 py-1 rounded-md border border-white/10 shadow-xs backdrop-blur-md select-none">
+                          Closed
+                        </span>
                       )}
                     </div>
                   </div>

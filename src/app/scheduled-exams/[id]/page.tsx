@@ -151,23 +151,17 @@ export default function ExamDetailPage() {
                 <span className="font-semibold text-zinc-900 truncate max-w-[280px] sm:max-w-none">{exam.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="glass-button-wrap rounded-full">
-                  <span className="glass-pill-white text-[10px] font-mono font-semibold px-3 py-1 rounded-full select-none">
-                    TOKEN: {encodeExamId(exam.id)}
-                  </span>
-                </div>
+                <span className="text-[10px] font-mono font-semibold text-zinc-700 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-200 shadow-2xs select-none">
+                  TOKEN: {encodeExamId(exam.id)}
+                </span>
                 {isExamRegistrationClosed(exam) ? (
-                  <div className="glass-button-wrap rounded-full">
-                    <span className="glass-pill-zinc text-[10px] font-semibold px-3 py-1 rounded-full select-none tracking-wider uppercase">
-                      Registration Closed
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200 select-none">
+                    Closed
+                  </span>
                 ) : (
-                  <div className="glass-button-wrap rounded-full">
-                    <span className="glass-pill-emerald text-[10px] font-semibold px-3 py-1 rounded-full select-none tracking-wider uppercase">
-                      Live Proctored
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-900 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-200 shadow-2xs select-none">
+                    Open
+                  </span>
                 )}
               </div>
             </div>
