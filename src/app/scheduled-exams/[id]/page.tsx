@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { encodeExamId } from "@/utils/secureId";
 
@@ -23,7 +23,6 @@ interface Exam {
 
 export default function ExamDetailPage() {
   const { id: rawParam } = useParams<{ id: string }>();
-  const router = useRouter();
   const supabase = createClient();
 
   const [exam, setExam] = useState<Exam | null>(null);
@@ -37,7 +36,7 @@ export default function ExamDetailPage() {
     const link = window.location.origin + "/scheduled-exams/" + encodeExamId(exam.id);
     navigator.clipboard.writeText(link);
     setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   useEffect(() => {
@@ -106,14 +105,14 @@ export default function ExamDetailPage() {
 
   return (
     <div className="min-h-screen bg-zinc-100 font-sans text-zinc-900 flex flex-col selection:bg-[#E61E32]/10 selection:text-[#E61E32]">
-      {/* Redlix Modern Header */}
+      {/* Redlix Header */}
       <header className="sticky top-0 z-50 bg-[#E61E32] border-b border-[#d01729] py-3 px-6 md:px-8 shadow-xs">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-3">
             <img
               src="https://ik.imagekit.io/dypkhqxip/logotraining?updatedAt=1783099023149"
               alt="Redlix Logo"
-              className="h-7.5 md:h-8 w-auto object-contain shrink-0 transition-transform group-hover:scale-[1.02]"
+              className="h-7 md:h-7.5 w-auto object-contain shrink-0"
             />
             <div className="flex items-center gap-2 border-l border-white/20 pl-3">
               <span className="font-semibold text-xs text-white font-inter tracking-wide">Exam Specification</span>
@@ -126,58 +125,54 @@ export default function ExamDetailPage() {
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center">
-            <div className="w-9 h-9 rounded-full border-2 border-t-[#E61E32] border-r-zinc-200 border-b-zinc-200 border-l-zinc-200 animate-spin mb-3" />
-            <p className="text-zinc-500 text-xs font-medium tracking-wide">Loading exam specification...</p>
+            <div className="w-8 h-8 rounded-full border-2 border-t-[#E61E32] border-r-zinc-200 border-b-zinc-200 border-l-zinc-200 animate-spin mb-3" />
+            <p className="text-zinc-500 text-xs font-medium">Loading exam specification...</p>
           </div>
         ) : notFound || !exam ? (
-          <div className="py-20 text-center bg-white border border-zinc-200/80 rounded-2xl p-8 shadow-xs">
-            <span className="material-symbols-rounded text-3xl text-zinc-300 mb-2">find_in_page</span>
-            <p className="text-zinc-700 font-semibold text-sm mb-1">Exam record not found</p>
+          <div className="py-20 text-center bg-white border border-zinc-200/80 rounded-xl p-8 shadow-xs">
+            <p className="text-zinc-800 font-semibold text-sm mb-1">Exam record not found</p>
             <p className="text-zinc-400 text-xs mb-4">The requested exam identifier does not exist or has been archived.</p>
             <Link
               href="/scheduled-exams"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#E61E32] hover:bg-[#d01729] px-4 py-2 rounded-xl transition-all shadow-xs"
+              className="inline-flex items-center text-xs font-semibold text-white bg-[#E61E32] hover:bg-[#d01729] px-4 py-2 rounded-md transition-all"
             >
-              <span className="material-symbols-rounded text-xs">arrow_back</span>
-              Back to Scheduled Exams
+              ← Back to Scheduled Exams
             </Link>
           </div>
         ) : (
-          <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="space-y-5">
 
-            {/* Breadcrumb Navigation & Top Badges */}
+            {/* Breadcrumb Navigation & Token */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-500">
               <div className="flex items-center gap-2">
-                <Link href="/scheduled-exams" className="hover:text-zinc-900 transition-colors font-medium">Scheduled Exams</Link>
+                <Link href="/scheduled-exams" className="hover:text-zinc-900 transition-colors">Scheduled Exams</Link>
                 <span>/</span>
                 <span className="font-semibold text-zinc-900 truncate max-w-[280px] sm:max-w-none">{exam.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-zinc-500 font-semibold bg-white px-2.5 py-1.5 rounded-md border border-zinc-200/90 shadow-2xs">
+                <span className="text-[10px] font-mono text-zinc-600 font-medium bg-white px-2.5 py-1 rounded border border-zinc-200">
                   TOKEN: {encodeExamId(exam.id)}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Proctoring Active
+                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                  Live Proctored
                 </span>
               </div>
             </div>
 
-            {/* 2-Column Responsive Grid */}
+            {/* 2-Column Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              {/* Left Column (Primary Syllabus & Instructions - 7/12 cols on desktop) */}
+              {/* Left Column (Details - 7/12 cols) */}
               <div className="lg:col-span-7 space-y-5">
                 
                 {/* Header Title Card */}
                 <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-md">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200 px-2 py-0.5 rounded">
                       {exam.company_name}
                     </span>
-                    <span className="text-xs text-zinc-500 font-medium flex items-center gap-1">
-                      <span className="material-symbols-rounded text-xs text-zinc-400">group</span>
-                      <strong className="text-zinc-900 font-bold">{regCount}</strong> Registered
+                    <span className="text-xs text-zinc-600 font-medium">
+                      <strong className="text-zinc-900">{regCount}</strong> Candidates Registered
                     </span>
                   </div>
                   <h1 className="text-lg md:text-xl font-bold text-zinc-900 font-inter leading-snug">
@@ -200,15 +195,14 @@ export default function ExamDetailPage() {
                       );
                     })()}
                   </h1>
-                  <p className="text-xs text-zinc-500 font-medium">Official Proctored Assessment for {exam.company_name} Candidates</p>
+                  <p className="text-xs text-zinc-500 font-normal">Official Proctored Assessment for {exam.company_name} Candidates</p>
                 </div>
 
                 {/* Description & Syllabus Card */}
                 {exam.description && (
                   <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
-                      <span className="material-symbols-rounded text-xs text-[#E61E32]">description</span>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Exam Synopsis &amp; Syllabus</h2>
+                    <div className="border-b border-zinc-100 pb-2.5">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Exam Synopsis &amp; Syllabus</h2>
                     </div>
 
                     <p className="text-xs text-zinc-700 leading-relaxed font-normal whitespace-pre-line">
@@ -223,9 +217,8 @@ export default function ExamDetailPage() {
                           {syllabusItems.map((topic, i) => (
                             <span
                               key={i}
-                              className="text-[11px] font-semibold text-zinc-700 bg-zinc-50 border border-zinc-200/80 px-2.5 py-1 rounded-md flex items-center gap-1"
+                              className="text-[11px] font-medium text-zinc-700 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded"
                             >
-                              <span className="w-1 h-1 rounded-full bg-[#E61E32]" />
                               {topic}
                             </span>
                           ))}
@@ -238,18 +231,15 @@ export default function ExamDetailPage() {
                 {/* Additional Rules & Guidelines Table */}
                 {Object.keys(exam.custom_fields || {}).length > 0 && (
                   <div className="bg-white border border-zinc-200/90 rounded-md overflow-hidden shadow-xs">
-                    <div className="px-6 py-3.5 border-b border-zinc-100 bg-zinc-50/80 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-rounded text-xs text-[#E61E32]">gavel</span>
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Instructions &amp; Regulations</h2>
-                      </div>
-                      <span className="text-[10px] font-semibold text-zinc-400">{Object.keys(exam.custom_fields).length} Rules</span>
+                    <div className="px-6 py-3 border-b border-zinc-100 bg-zinc-50 flex items-center justify-between">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Instructions &amp; Regulations</h2>
+                      <span className="text-[10px] font-medium text-zinc-400">{Object.keys(exam.custom_fields).length} Guidelines</span>
                     </div>
                     <div className="divide-y divide-zinc-100 text-xs">
                       {Object.entries(exam.custom_fields).map(([key, val]) => (
                         <div key={key} className="flex justify-between items-center px-6 py-3 hover:bg-zinc-50/50 transition-colors">
-                          <span className="text-zinc-500 font-medium">{key}</span>
-                          <span className="text-zinc-900 font-bold text-right ml-4">{val}</span>
+                          <span className="text-zinc-500 font-normal">{key}</span>
+                          <span className="text-zinc-900 font-semibold text-right ml-4">{val}</span>
                         </div>
                       ))}
                     </div>
@@ -258,33 +248,29 @@ export default function ExamDetailPage() {
 
               </div>
 
-              {/* Right Column (Sidebar with Banner Image & All Action Buttons - 5/12 cols on desktop) */}
+              {/* Right Column (Sidebar with Banner Image & Clean Action Suite - 5/12 cols) */}
               <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
                 
-                {/* Banner & Action Hub Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-4 shadow-xs space-y-3.5">
+                {/* Banner & Action Card */}
+                <div className="bg-white border border-zinc-200/90 rounded-md p-4 shadow-xs space-y-3">
                   {/* High Resolution Cover Image */}
                   <div
                     className="w-full aspect-square rounded-md overflow-hidden border border-zinc-200/80 bg-zinc-900 shadow-xs relative group cursor-pointer"
                     onClick={() => window.open(coverSrc, "_blank")}
-                    title="Click to view full resolution banner"
+                    title="Click to view full banner"
                   >
                     <img
                       src={coverSrc}
                       alt={exam.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 backdrop-blur-[2px]">
-                      <span className="material-symbols-rounded text-sm">open_in_full</span>
-                      <span>View Full Banner</span>
-                    </div>
                   </div>
 
-                  {/* High Visibility Action Suite Directly Under Banner */}
-                  <div className="space-y-2.5 pt-1">
+                  {/* Clean Action Suite Under Banner */}
+                  <div className="space-y-2 pt-0.5">
                     {/* Primary Registration Action */}
                     {exam.registration_closed ? (
                       <div className="w-full py-2.5 px-4 bg-zinc-100 border border-zinc-300 text-zinc-500 font-semibold text-xs rounded-md text-center">
@@ -293,12 +279,9 @@ export default function ExamDetailPage() {
                     ) : (
                       <Link
                         href={`/register?examId=${exam.id}`}
-                        className="w-full py-3 px-4 bg-[#E61E32] hover:bg-[#c91527] active:scale-[0.99] text-white font-semibold text-xs sm:text-sm rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                        className="w-full py-2.5 px-4 bg-[#E61E32] hover:bg-[#c91527] active:scale-[0.99] text-white font-semibold text-xs sm:text-sm rounded-md shadow-xs transition-all flex items-center justify-center cursor-pointer text-center"
                       >
-                        <svg className="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                        </svg>
-                        <span>Register for Exam</span>
+                        Register for Exam
                       </Link>
                     )}
 
@@ -306,87 +289,67 @@ export default function ExamDetailPage() {
                     {exam.show_login && (
                       <Link
                         href={`/exam-login?examId=${exam.id}`}
-                        className="w-full py-2.5 px-4 bg-white border border-[#E61E32] text-[#E61E32] hover:bg-red-50 active:scale-[0.99] font-semibold text-xs rounded-md shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                        className="w-full py-2 px-4 bg-white border border-[#E61E32] text-[#E61E32] hover:bg-red-50 active:scale-[0.99] font-semibold text-xs rounded-md shadow-2xs transition-all flex items-center justify-center cursor-pointer text-center"
                       >
-                        <svg className="w-4 h-4 text-[#E61E32] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                        </svg>
-                        <span>Enter Exam Portal</span>
+                        Enter Exam Portal
                       </Link>
                     )}
 
-                    {/* Sub Actions: Edit Details & Copy Link with Clear Contrast */}
+                    {/* Sub Actions: Edit Details & Copy Link */}
                     <div className="grid grid-cols-2 gap-2">
                       <Link
                         href="/register/edit"
-                        className="py-2.5 px-3 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-900 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center shadow-2xs"
+                        className="py-2 px-3 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-900 text-xs font-semibold rounded-md transition-all flex items-center justify-center cursor-pointer text-center"
                       >
-                        <svg className="w-4 h-4 text-zinc-700 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <span>Edit Details</span>
+                        Edit Details
                       </Link>
 
                       <button
                         onClick={handleCopyLink}
-                        className="py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                        className="py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center"
                       >
                         {copied ? (
-                          <>
-                            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span className="text-emerald-400">Copied!</span>
-                          </>
+                          <span className="text-emerald-400">Copied!</span>
                         ) : (
-                          <>
-                            <svg className="w-4 h-4 text-[#E61E32] shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <span>Copy Link</span>
-                          </>
+                          <span>Copy Link</span>
                         )}
                       </button>
                     </div>
 
-                    {/* Notice */}
-                    <p className="text-[11px] text-zinc-500 font-medium text-center pt-1">
-                      🔒 Official Proctored Assessment • Instant Hall Ticket Issued
+                    {/* Clean Notice */}
+                    <p className="text-[11px] text-zinc-500 font-normal text-center pt-0.5">
+                      Proctored Assessment • Instant Hall Ticket Issued
                     </p>
                   </div>
                 </div>
 
                 {/* Key Metrics Stack Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-5 shadow-xs space-y-4">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 pb-2.5">
+                <div className="bg-white border border-zinc-200/90 rounded-md p-5 shadow-xs space-y-3.5">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 pb-2">
                     Assessment Parameters
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {[
-                      { label: "Schedule Date", value: exam.date, icon: "calendar_today" },
-                      { label: "Start Time", value: exam.time, icon: "schedule" },
-                      { label: "Total Questions", value: `${exam.total_qns} Questions`, icon: "quiz" },
-                      { label: "Question Format", value: exam.types_of_qns || "Multiple Choice Questions (MCQs)", icon: "format_list_bulleted" },
-                    ].map(({ label, value, icon }) => (
-                      <div key={label} className="flex items-center gap-3 p-3 rounded-md bg-zinc-50/70 border border-zinc-100/90">
-                        <span className="material-symbols-rounded text-sm text-[#E61E32] shrink-0">{icon}</span>
-                        <div>
-                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{label}</p>
-                          <p className="text-xs font-bold text-zinc-900 mt-0.5 leading-snug">{value}</p>
-                        </div>
+                      { label: "Schedule Date", value: exam.date },
+                      { label: "Start Time", value: exam.time },
+                      { label: "Total Questions", value: `${exam.total_qns} Questions` },
+                      { label: "Question Format", value: exam.types_of_qns || "Multiple Choice Questions (MCQs)" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 px-3 rounded bg-zinc-50 border border-zinc-100">
+                        <span className="text-xs text-zinc-500 font-normal">{label}</span>
+                        <span className="text-xs font-semibold text-zinc-900 text-right ml-3">{value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Return Link */}
-                <div className="pt-1">
+                <div className="pt-0.5">
                   <Link
                     href="/scheduled-exams"
-                    className="text-xs text-zinc-500 hover:text-zinc-900 font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="text-xs text-zinc-500 hover:text-zinc-900 font-medium inline-flex items-center transition-colors"
                   >
-                    <span className="material-symbols-rounded text-xs">arrow_back</span>
-                    Return to Scheduled Exams Directory
+                    ← Return to Scheduled Exams Directory
                   </Link>
                 </div>
 
