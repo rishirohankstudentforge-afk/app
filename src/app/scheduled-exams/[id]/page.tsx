@@ -283,20 +283,22 @@ export default function ExamDetailPage() {
                     </div>
                   </div>
 
-                  {/* Comprehensive Action Suite Directly Under Banner */}
-                  <div className="space-y-2 pt-1">
+                  {/* Clean, Simple Action Suite Directly Under Banner */}
+                  <div className="space-y-2 pt-0.5">
                     {/* Primary Registration Action */}
                     {exam.registration_closed ? (
-                      <div className="w-full py-3 bg-zinc-100 border border-zinc-200 text-zinc-400 font-bold text-xs rounded-md text-center">
+                      <div className="w-full py-2 px-3 bg-zinc-100 border border-zinc-200/80 text-zinc-400 font-medium text-xs rounded-md text-center">
                         Registration Closed
                       </div>
                     ) : (
                       <Link
                         href={`/register?examId=${exam.id}`}
-                        className="w-full py-3 bg-[#E61E32] hover:bg-[#d01729] active:scale-[0.99] text-white font-bold text-xs md:text-sm rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                        className="w-full py-2.5 px-4 bg-[#E61E32] hover:bg-[#d01729] active:scale-[0.99] text-white font-medium text-xs rounded-md shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
                       >
-                        <span className="material-symbols-rounded text-sm">how_to_reg</span>
-                        <span>Register for Exam →</span>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        <span>Register for Exam</span>
                       </Link>
                     )}
 
@@ -304,37 +306,52 @@ export default function ExamDetailPage() {
                     {exam.show_login && (
                       <Link
                         href={`/exam-login?examId=${exam.id}`}
-                        className="w-full py-2.5 border-2 border-[#E61E32] text-[#E61E32] hover:bg-red-50 active:scale-[0.99] font-bold text-xs rounded-md shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                        className="w-full py-2 px-3 bg-white border border-[#E61E32]/70 text-[#E61E32] hover:bg-red-50/70 active:scale-[0.99] font-medium text-xs rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
                       >
-                        <span className="material-symbols-rounded text-sm">login</span>
-                        <span>Enter Exam Portal →</span>
+                        <svg className="w-3.5 h-3.5 text-[#E61E32]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Enter Exam Portal</span>
                       </Link>
                     )}
 
                     {/* Sub Actions: Edit Registration & Copy Link */}
-                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <div className="grid grid-cols-2 gap-2">
                       <Link
                         href="/register/edit"
-                        className="py-2.5 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 border border-zinc-200/90 text-zinc-700 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center shadow-2xs"
+                        className="py-2 px-2.5 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 hover:text-zinc-900 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
                       >
-                        <span className="material-symbols-rounded text-xs text-zinc-500">edit_document</span>
+                        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                         <span>Edit Details</span>
                       </Link>
 
                       <button
                         onClick={handleCopyLink}
-                        className="py-2.5 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 text-white font-bold text-xs rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                        className="py-2 px-2.5 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 hover:text-zinc-900 text-xs font-medium rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <svg className="w-3.5 h-3.5 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <span>{copied ? "Copied!" : "Copy Link"}</span>
+                        {copied ? (
+                          <>
+                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="text-emerald-600 font-medium">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>Copy Link</span>
+                          </>
+                        )}
                       </button>
                     </div>
 
                     {/* Notice */}
-                    <p className="text-[10px] text-zinc-400 text-center pt-1">
-                      🔒 Official Proctored Examination • Instant Hall Ticket Issued
+                    <p className="text-[10px] text-zinc-400 text-center pt-0.5 font-normal">
+                      Proctored Session • Instant Hall Ticket
                     </p>
                   </div>
                 </div>
