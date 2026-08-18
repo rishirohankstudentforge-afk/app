@@ -884,7 +884,7 @@ export default function ExamSessionPage() {
 
   
   useEffect(() => {
-    if (!setupDone || isSubmitted || !session || !videoRef.current) return;
+    if (!setupDone || isSubmitted || !session) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = 320;
@@ -892,28 +892,36 @@ export default function ExamSessionPage() {
     const ctx = canvas.getContext("2d");
 
     const uploadFrame = async () => {
-      if (!videoRef.current || !ctx) return;
+      const vid = videoRef.current;
+      if (!vid || !ctx) return;
       try {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.5);
+        if (vid.videoWidth > 0 && vid.videoHeight > 0) {
+          ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
 
-        await fetch("/api/exam/upload-feed", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId: session.hallTicketNumber,
-            image: dataUrl,
-          }),
-        });
+          // 1. Send snapshot to backend storage and session record
+          fetch("/api/exam/upload-feed", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId: session.hallTicketNumber,
+              image: dataUrl,
+            }),
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error("Error uploading camera snapshot:", err);
       }
     };
 
-    const interval = setInterval(uploadFrame, 2500);
-    return () => clearInterval(interval);
+    const initialTimer = setTimeout(uploadFrame, 1500);
+    const interval = setInterval(uploadFrame, 3000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [setupDone, isSubmitted, session]);
 
   useEffect(() => {

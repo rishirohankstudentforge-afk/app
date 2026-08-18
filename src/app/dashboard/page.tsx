@@ -462,6 +462,22 @@ export default function Dashboard() {
       )
       .subscribe();
 
+    // Direct real-time live webcam frame broadcast channel (0-latency)
+    const streamChannel = supabase
+      .channel("live-proctoring-stream")
+      .on("broadcast", { event: "live_frame" }, ({ payload }: any) => {
+        if (!payload?.sessionId || !payload?.liveFeed) return;
+        const sId = payload.sessionId.toString().trim().toLowerCase();
+        const feed = payload.liveFeed;
+        setSessions((prev) =>
+          prev.map((s) => (s.id.toLowerCase() === sId ? { ...s, liveFeed: feed } : s))
+        );
+        setActiveStreamSession((prev) =>
+          prev && prev.id.toLowerCase() === sId ? { ...prev, liveFeed: feed } : prev
+        );
+      })
+      .subscribe();
+
     const presenceChannel = supabase.channel("exam-presence-global");
     presenceChannel
       .on("presence", { event: "sync" }, () => {
@@ -478,8 +494,15 @@ export default function Dashboard() {
       })
       .subscribe();
 
+    // Auto-refresh sessions every 4 seconds to guarantee feeds load reliably
+    const refreshInterval = setInterval(() => {
+      fetchSessions();
+    }, 4000);
+
     return () => {
+      clearInterval(refreshInterval);
       supabase.removeChannel(channel);
+      supabase.removeChannel(streamChannel);
       supabase.removeChannel(presenceChannel);
     };
   }, [isAuthenticated]);
