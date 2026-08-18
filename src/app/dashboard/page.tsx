@@ -6,17 +6,21 @@ import { motion } from "motion/react";
 import { createClient } from "@/utils/supabase/client";
 import { QUESTIONS } from "@/app/exam-session/questions";
 import { TECHNICAL_QUESTIONS } from "@/app/exam-session/technicalQuestions";
-import { gradeTechnicalFull } from "@/app/exam-session/technicalAnswerKey";
+import { TECHNICAL_ANSWER_KEY, gradeTechnicalFull } from "@/app/exam-session/technicalAnswerKey";
 import { UIUX_QUESTIONS } from "@/app/exam-session/uiuxQuestions";
-import { gradeUIUXFull } from "@/app/exam-session/uiuxAnswerKey";
+import { UIUX_ANSWER_KEY, gradeUIUXFull } from "@/app/exam-session/uiuxAnswerKey";
 import { MARKETING_QUESTIONS } from "@/app/exam-session/marketingQuestions";
-import { gradeMarketingFull } from "@/app/exam-session/marketingAnswerKey";
+import { MARKETING_ANSWER_KEY, gradeMarketingFull } from "@/app/exam-session/marketingAnswerKey";
 import { ANALYTICS_QUESTIONS } from "@/app/exam-session/analyticsQuestions";
-import { gradeAnalyticsFull } from "@/app/exam-session/analyticsAnswerKey";
+import { ANALYTICS_ANSWER_KEY, gradeAnalyticsFull } from "@/app/exam-session/analyticsAnswerKey";
 import { TRAINING01_QUESTIONS } from "@/app/exam-session/training01Questions";
 import { gradeTraining01Full } from "@/app/exam-session/training01AnswerKey";
 import { PHASE02_QUESTIONS } from "@/app/exam-session/phase02Questions";
 import { gradePhase02Full } from "@/app/exam-session/phase02AnswerKey";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "@/app/exam-session/businessAnalysisQuestions";
+import { BUSINESS_ANALYSIS_ANSWER_KEY, gradeBusinessAnalysisFull } from "@/app/exam-session/businessAnalysisAnswerKey";
+import { SALES_MARKETING_QUESTIONS } from "@/app/exam-session/salesMarketingQuestions";
+import { SALES_MARKETING_ANSWER_KEY, gradeSalesMarketingFull } from "@/app/exam-session/salesMarketingAnswerKey";
 
 interface Session {
   id: string;
@@ -2076,13 +2080,17 @@ export default function Dashboard() {
       // ── Exam Type & Grading ──────────────────────────────
       const examName = exam ? exam.name.toLowerCase() : "";
       const isTechnicalExam = exam && examName.includes("technical");
+      const isBusinessAnalysisExam = exam && (examName.includes("business") || examName.includes("bussiness") || candidate.exam_id === 6);
+      const isSalesMarketingExam = exam && (examName.includes("sales") || candidate.exam_id === 7);
       const isUIUXExam = exam && (examName.includes("ui") || examName.includes("ux"));
-      const isMarketingExam = exam && examName.includes("marketing");
+      const isMarketingExam = exam && examName.includes("marketing") && !isSalesMarketingExam;
       const isAnalyticsExam = exam && examName.includes("analytics");
       const isTraining01Exam = exam && examName.includes("redlix training exam 01");
       const isPhase02Exam = exam && (examName.includes("redlix phase - 02") || examName.includes("final phase"));
 
       let technicalGrade: ReturnType<typeof gradeTechnicalFull> | null = null;
+      let businessAnalysisGrade: ReturnType<typeof gradeBusinessAnalysisFull> | null = null;
+      let salesMarketingGrade: ReturnType<typeof gradeSalesMarketingFull> | null = null;
       let uiuxGrade: ReturnType<typeof gradeUIUXFull> | null = null;
       let marketingGrade: ReturnType<typeof gradeMarketingFull> | null = null;
       let analyticsGrade: ReturnType<typeof gradeAnalyticsFull> | null = null;
@@ -2093,6 +2101,16 @@ export default function Dashboard() {
         candidateQuestions = TECHNICAL_QUESTIONS.map((q) => ({ ...q }));
         if (candidate.answers) {
           technicalGrade = gradeTechnicalFull(candidate.answers as Record<string | number, string>);
+        }
+      } else if (isBusinessAnalysisExam) {
+        candidateQuestions = BUSINESS_ANALYSIS_QUESTIONS.map((q) => ({ ...q }));
+        if (candidate.answers) {
+          businessAnalysisGrade = gradeBusinessAnalysisFull(candidate.answers as Record<string | number, string>);
+        }
+      } else if (isSalesMarketingExam) {
+        candidateQuestions = SALES_MARKETING_QUESTIONS.map((q) => ({ ...q }));
+        if (candidate.answers) {
+          salesMarketingGrade = gradeSalesMarketingFull(candidate.answers as Record<string | number, string>);
         }
       } else if (isUIUXExam) {
         candidateQuestions = UIUX_QUESTIONS.map((q) => ({ ...q }));
@@ -2221,6 +2239,64 @@ export default function Dashboard() {
                     <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
                     <p className="text-sm font-bold mt-0.5">{technicalGrade.isPass ? "PASSED" : "FAILED"}</p>
                     <p className="text-[9px] opacity-80">Cut-off: 40% (20/50)</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Business Analysis Wing — Score Banner */}
+            {isBusinessAnalysisExam && businessAnalysisGrade && (
+              <div className="px-5 py-3 border-b border-zinc-200 bg-sky-50/60 shrink-0">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-sky-700 mb-2">
+                  🔒 Business Analysis Wing Auto-Graded Score (Admin View Only)
+                </p>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-white border border-sky-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
+                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{businessAnalysisGrade.totalAttempted} / 50</p>
+                  </div>
+                  <div className="bg-white border border-sky-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
+                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{businessAnalysisGrade.totalCorrect} / 50</p>
+                  </div>
+                  <div className="bg-white border border-sky-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
+                    <p className="text-sm font-bold text-sky-900 mt-0.5">{businessAnalysisGrade.totalMarks} / 100</p>
+                    <p className="text-[9px] text-zinc-400">{businessAnalysisGrade.percentage}%</p>
+                  </div>
+                  <div className={`border p-2 text-center ${businessAnalysisGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
+                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
+                    <p className="text-sm font-bold mt-0.5">{businessAnalysisGrade.isPass ? "PASSED" : "FAILED"}</p>
+                    <p className="text-[9px] opacity-80">Cut-off: 40% (40/100)</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sales and Marketing Wing — Score Banner */}
+            {isSalesMarketingExam && salesMarketingGrade && (
+              <div className="px-5 py-3 border-b border-zinc-200 bg-amber-50/60 shrink-0">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-amber-700 mb-2">
+                  🔒 Sales and Marketing Wing Auto-Graded Score (Admin View Only)
+                </p>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-white border border-amber-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
+                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{salesMarketingGrade.totalAttempted} / 50</p>
+                  </div>
+                  <div className="bg-white border border-amber-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
+                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{salesMarketingGrade.totalCorrect} / 50</p>
+                  </div>
+                  <div className="bg-white border border-amber-200 p-2 text-center">
+                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
+                    <p className="text-sm font-bold text-amber-900 mt-0.5">{salesMarketingGrade.totalMarks} / 100</p>
+                    <p className="text-[9px] text-zinc-400">{salesMarketingGrade.percentage}%</p>
+                  </div>
+                  <div className={`border p-2 text-center ${salesMarketingGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
+                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
+                    <p className="text-sm font-bold mt-0.5">{salesMarketingGrade.isPass ? "PASSED" : "FAILED"}</p>
+                    <p className="text-[9px] opacity-80">Cut-off: 40% (40/100)</p>
                   </div>
                 </div>
               </div>
@@ -2393,8 +2469,20 @@ export default function Dashboard() {
                 </h4>
                 <div className="space-y-3">
                   {mcqQuestions.map((q) => {
-                    const selectedLetter = candidate.answers?.[q.id];
+                    const rawAns = candidate.answers?.[q.id];
+                    const selectedLetter = rawAns ? rawAns.toString().trim().charAt(0).toUpperCase() : "";
                     const attempted = isQuestionAttempted(q);
+
+                    const correctLetter = 
+                      isBusinessAnalysisExam ? BUSINESS_ANALYSIS_ANSWER_KEY[q.id] :
+                      isSalesMarketingExam ? SALES_MARKETING_ANSWER_KEY[q.id] :
+                      isTechnicalExam ? TECHNICAL_ANSWER_KEY[q.id] :
+                      isUIUXExam ? UIUX_ANSWER_KEY[q.id] :
+                      isMarketingExam ? MARKETING_ANSWER_KEY[q.id] :
+                      isAnalyticsExam ? ANALYTICS_ANSWER_KEY[q.id] :
+                      null;
+
+                    const isCorrect = correctLetter && selectedLetter ? selectedLetter === correctLetter : false;
 
                     return (
                       <div key={q.id} className="p-3.5 border border-zinc-200 bg-white space-y-3">
@@ -2402,36 +2490,69 @@ export default function Dashboard() {
                           <h5 className="text-xs font-bold text-zinc-800 leading-relaxed">
                             Question {q.number}: <span className="font-normal text-zinc-650 whitespace-pre-wrap">{q.questionText}</span>
                           </h5>
-                          <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 border ${
-                            attempted 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-250" 
-                              : "bg-red-50 text-red-700 border-red-250"
-                          }`}>
-                            {attempted ? "Attempted" : "Not Attempted"}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {correctLetter && attempted && (
+                              <span className={`text-[9px] font-bold px-2 py-0.5 border ${
+                                isCorrect 
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
+                                  : "bg-red-100 text-red-800 border-red-300"
+                              }`}>
+                                {isCorrect ? "✓ Correct (+2)" : "✗ Incorrect (0)"}
+                              </span>
+                            )}
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${
+                              attempted 
+                                ? "bg-zinc-100 text-zinc-700 border-zinc-300" 
+                                : "bg-zinc-50 text-zinc-400 border-zinc-200"
+                            }`}>
+                              {attempted ? "Attempted" : "Not Attempted"}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-3">
                           {q.options?.map((opt) => {
-                            const letter = opt.substring(0, 1);
+                            const letter = opt.substring(0, 1).toUpperCase();
                             const isSelected = selectedLetter === letter;
+                            const isThisCorrect = correctLetter === letter;
+
                             return (
                               <div 
                                 key={opt}
-                                className={`p-2 border text-xs flex items-center gap-2 ${
-                                  isSelected 
-                                    ? "bg-orange-50/30 border-orange-400 font-semibold text-orange-950" 
+                                className={`p-2 border text-xs flex items-center justify-between gap-2 ${
+                                  isSelected && isThisCorrect
+                                    ? "bg-emerald-50 border-emerald-400 font-semibold text-emerald-950"
+                                    : isSelected && !isThisCorrect
+                                    ? "bg-red-50 border-red-300 font-semibold text-red-950"
+                                    : isThisCorrect
+                                    ? "bg-emerald-50/50 border-emerald-300/80 font-medium text-emerald-900 border-dashed"
                                     : "bg-zinc-50 border-zinc-200 text-zinc-600"
                                 }`}
                               >
-                                <span className={`w-4 h-4 flex items-center justify-center text-[9px] font-bold border rounded-full ${
-                                  isSelected 
-                                    ? "bg-orange-500 border-orange-500 text-white" 
-                                    : "border-zinc-300 text-zinc-400 bg-white"
-                                }`}>
-                                  {letter}
-                                </span>
-                                <span className="font-sans leading-none">{opt.substring(3)}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-4 h-4 flex items-center justify-center text-[9px] font-bold border rounded-full ${
+                                    isSelected && isThisCorrect
+                                      ? "bg-emerald-600 border-emerald-600 text-white"
+                                      : isSelected && !isThisCorrect
+                                      ? "bg-red-600 border-red-600 text-white"
+                                      : isThisCorrect
+                                      ? "bg-emerald-100 border-emerald-400 text-emerald-800"
+                                      : "border-zinc-300 text-zinc-400 bg-white"
+                                  }`}>
+                                    {letter}
+                                  </span>
+                                  <span className="font-sans leading-none">{opt.substring(3)}</span>
+                                </div>
+                                {isSelected && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 bg-white/80 rounded border border-zinc-200">
+                                    Candidate
+                                  </span>
+                                )}
+                                {!isSelected && isThisCorrect && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                    Key
+                                  </span>
+                                )}
                               </div>
                             );
                           })}

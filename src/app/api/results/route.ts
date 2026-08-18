@@ -70,7 +70,20 @@ export async function GET(req: NextRequest) {
           const isMarketingMCQ = qId >= 3001 && qId <= 3050;
           const isAnalyticsMCQ = qId >= 4001 && qId <= 4050;
           const isUIUXMCQ = qId >= 5001 && qId <= 5050;
-          return (isGeneralMCQ || isTrainingMCQ || isPhase02MCQ || isMarketingMCQ || isAnalyticsMCQ || isUIUXMCQ) && v && v.toString().trim();
+          const isBusinessAnalysisMCQ = qId >= 6001 && qId <= 6050;
+          const isSalesMarketingMCQ = qId >= 7001 && qId <= 7050;
+          return (
+            (isGeneralMCQ ||
+              isTrainingMCQ ||
+              isPhase02MCQ ||
+              isMarketingMCQ ||
+              isAnalyticsMCQ ||
+              isUIUXMCQ ||
+              isBusinessAnalysisMCQ ||
+              isSalesMarketingMCQ) &&
+            v &&
+            v.toString().trim()
+          );
         }).length;
         const codingAnswered = Object.entries(answers).filter(([k, v]: any) => {
           const qId = Number(k);
