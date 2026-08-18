@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -124,6 +124,7 @@ export default function Dashboard() {
     return res.json();
   };
 
+  const supabase = createClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,6 +137,8 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStreamSession, setActiveStreamSession] = useState<Session | null>(null);
+  const [isWebRtcConnected, setIsWebRtcConnected] = useState(false);
+  const webRtcVideoRef = useRef<HTMLVideoElement>(null);
 
   
   const [examName, setExamName] = useState("");
@@ -511,6 +514,106 @@ export default function Dashboard() {
       supabase.removeChannel(presenceChannel);
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!activeStreamSession) {
+      setIsWebRtcConnected(false);
+      return;
+    }
+
+    const studentId = activeStreamSession.id.toString().trim().toLowerCase();
+    const proctorId = "proctor_" + Math.random().toString(36).substring(2, 9);
+    const streamChannel = supabase.channel("live-proctoring-stream");
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+      ],
+    });
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        if (webRtcVideoRef.current) {
+          webRtcVideoRef.current.srcObject = event.streams[0];
+          setIsWebRtcConnected(true);
+        }
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        streamChannel.send({
+          type: "broadcast",
+          event: "webrtc_ice_candidate",
+          payload: {
+            studentId,
+            proctorId,
+            candidate: event.candidate,
+            from: "proctor",
+          },
+        }).catch(() => {});
+      }
+    };
+
+    streamChannel
+      .on("broadcast", { event: "webrtc_offer" }, async ({ payload }: any) => {
+        if (!payload?.offer || !payload?.studentId || !payload?.proctorId) return;
+        if (payload.proctorId !== proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== studentId) return;
+
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          streamChannel.send({
+            type: "broadcast",
+            event: "webrtc_answer",
+            payload: {
+              studentId,
+              proctorId,
+              answer,
+            },
+          }).catch(() => {});
+        } catch (err) {
+          console.error("Error creating WebRTC answer on proctor:", err);
+        }
+      })
+      .on("broadcast", { event: "webrtc_ice_candidate" }, async ({ payload }: any) => {
+        if (!payload?.candidate || !payload?.studentId || !payload?.proctorId) return;
+        if (payload.from !== "student") return;
+        if (payload.proctorId !== proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== studentId) return;
+
+        try {
+          if (pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          }
+        } catch (err) {
+          console.error("Error adding student ICE candidate on proctor:", err);
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          streamChannel.send({
+            type: "broadcast",
+            event: "request_webrtc_stream",
+            payload: {
+              studentId,
+              proctorId,
+            },
+          }).catch(() => {});
+        }
+      });
+
+    return () => {
+      pc.close();
+      setIsWebRtcConnected(false);
+      supabase.removeChannel(streamChannel);
+    };
+  }, [activeStreamSession]);
 
   useEffect(() => {
     if ((activeTab === "exams-list" || activeTab === "overview") && isAuthenticated) {
@@ -985,11 +1088,18 @@ export default function Dashboard() {
                       
                       <div className="relative aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-zinc-200">
                         {session.liveFeed ? (
-                          <img 
-                            src={session.liveFeed} 
-                            alt={session.student} 
-                            className="w-full h-full object-cover scale-x-[-1]" 
-                          />
+                          <>
+                            <img 
+                              src={session.liveFeed} 
+                              alt={session.student} 
+                              className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-150" 
+                              style={{ imageRendering: "auto", transform: "scaleX(-1) translateZ(0)" }}
+                            />
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/70 backdrop-blur-xs text-[9px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>240p LIVE</span>
+                            </div>
+                          </>
                         ) : (
                           <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 p-2 text-center bg-zinc-900">
                             <span className="material-symbols-outlined text-lg mb-1 animate-pulse">videocam_off</span>
@@ -2014,15 +2124,42 @@ export default function Dashboard() {
             <button onClick={() => setActiveStreamSession(null)} className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"><span className="material-symbols-outlined text-md">close</span></button>
           </div>
 
-          {}
+          {/* Main Video View Container */}
           <div className="relative aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-zinc-200">
-            {currentStream.liveFeed ? (
+            {/* Native WebRTC 30 FPS Live Stream */}
+            <video
+              ref={webRtcVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover scale-x-[-1] ${isWebRtcConnected ? "block" : "hidden"}`}
+              style={{ transform: "scaleX(-1) translateZ(0)" }}
+            />
+
+            {/* Seamless Real-time Frame Fallback (240p) */}
+            {currentStream.liveFeed && !isWebRtcConnected && (
               <img 
                 src={currentStream.liveFeed} 
                 alt="Candidate webcam stream" 
-                className="w-full h-full object-cover scale-x-[-1]" 
+                className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-150" 
+                style={{ imageRendering: "auto", transform: "scaleX(-1) translateZ(0)" }}
               />
-            ) : (
+            )}
+
+            {/* Live Video Quality Badge */}
+            {isWebRtcConnected ? (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-black/80 backdrop-blur-xs text-[10px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1.5 border border-emerald-500/40 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>30 FPS LIVE HD (WEBRTC)</span>
+              </div>
+            ) : currentStream.liveFeed ? (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-black/75 backdrop-blur-xs text-[10px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1.5 border border-emerald-500/30 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>240p SMOOTH STREAM</span>
+              </div>
+            ) : null}
+
+            {!currentStream.liveFeed && !isWebRtcConnected && (
               <>
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.6)_100%)] pointer-events-none" />
                 

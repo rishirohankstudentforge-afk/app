@@ -886,41 +886,174 @@ export default function ExamSessionPage() {
   useEffect(() => {
     if (!setupDone || isSubmitted || !session) return;
 
+    // True 240p Widescreen Canvas (426x240)
     const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 180;
-    const ctx = canvas.getContext("2d");
+    canvas.width = 426;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d", { alpha: false });
 
-    const uploadFrame = async () => {
+    // Active WebRTC peer connections keyed by proctorId
+    const peerConnections: Record<string, RTCPeerConnection> = {};
+
+    const iceConfig = {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+      ],
+    };
+
+    // Real-time WebSocket proctoring stream channel
+    const streamChannel = supabase.channel("live-proctoring-stream");
+    let isChannelReady = false;
+
+    streamChannel
+      .on("broadcast", { event: "request_webrtc_stream" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        try {
+          const proctorId = payload.proctorId;
+          if (peerConnections[proctorId]) {
+            peerConnections[proctorId].close();
+          }
+
+          const pc = new RTCPeerConnection(iceConfig);
+          peerConnections[proctorId] = pc;
+
+          const currentStream = streamRef.current;
+          if (currentStream) {
+            currentStream.getTracks().forEach((track) => {
+              pc.addTrack(track, currentStream);
+            });
+          }
+
+          pc.onicecandidate = (event) => {
+            if (event.candidate && isChannelReady) {
+              streamChannel.send({
+                type: "broadcast",
+                event: "webrtc_ice_candidate",
+                payload: {
+                  studentId: session.hallTicketNumber,
+                  proctorId,
+                  candidate: event.candidate,
+                  from: "student",
+                },
+              }).catch(() => {});
+            }
+          };
+
+          const offer = await pc.createOffer({
+            offerToReceiveVideo: false,
+            offerToReceiveAudio: false,
+          });
+          await pc.setLocalDescription(offer);
+
+          if (isChannelReady) {
+            streamChannel.send({
+              type: "broadcast",
+              event: "webrtc_offer",
+              payload: {
+                studentId: session.hallTicketNumber,
+                proctorId,
+                offer,
+              },
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.error("Error creating WebRTC offer for proctor:", err);
+        }
+      })
+      .on("broadcast", { event: "webrtc_answer" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId || !payload?.answer) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        const pc = peerConnections[payload.proctorId];
+        if (pc && pc.signalingState !== "closed") {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          } catch (err) {
+            console.error("Error setting WebRTC remote description on student:", err);
+          }
+        }
+      })
+      .on("broadcast", { event: "webrtc_ice_candidate" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId || !payload?.candidate) return;
+        if (payload.from !== "proctor") return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        const pc = peerConnections[payload.proctorId];
+        if (pc && pc.remoteDescription) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } catch (err) {
+            console.error("Error adding ICE candidate on student:", err);
+          }
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          isChannelReady = true;
+        }
+      });
+
+    let lastDbSync = 0;
+
+    const streamVideoFrame = () => {
       const vid = videoRef.current;
       if (!vid || !ctx) return;
+
       try {
         if (vid.videoWidth > 0 && vid.videoHeight > 0) {
           ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
+          
+          // Ultra-fast lightweight 240p frame (WebP / JPEG)
+          const dataUrl = canvas.toDataURL("image/webp", 0.4) || canvas.toDataURL("image/jpeg", 0.4);
+          const now = Date.now();
 
-          // 1. Send snapshot to backend storage and session record
-          fetch("/api/exam/upload-feed", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sessionId: session.hallTicketNumber,
-              image: dataUrl,
-            }),
-          }).catch(() => {});
+          // Real-time broadcast to proctors over WebSocket (0ms latency, high smoothness fallback)
+          if (isChannelReady) {
+            streamChannel.send({
+              type: "broadcast",
+              event: "live_frame",
+              payload: {
+                sessionId: session.hallTicketNumber,
+                liveFeed: dataUrl,
+                timestamp: now,
+                resolution: "240p",
+              },
+            }).catch(() => {});
+          }
+
+          // Periodic persistence to DB/storage (every 6 seconds)
+          if (now - lastDbSync > 6000) {
+            lastDbSync = now;
+            fetch("/api/exam/upload-feed", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                sessionId: session.hallTicketNumber,
+                image: dataUrl,
+              }),
+            }).catch(() => {});
+          }
         }
       } catch (err) {
-        console.error("Error uploading camera snapshot:", err);
+        console.error("Error streaming 240p camera frame:", err);
       }
     };
 
-    const initialTimer = setTimeout(uploadFrame, 1500);
-    const interval = setInterval(uploadFrame, 3000);
+    const initialTimer = setTimeout(streamVideoFrame, 800);
+    // 160ms interval provides smooth ~6-7 FPS live video motion fallback
+    const streamInterval = setInterval(streamVideoFrame, 160);
+
     return () => {
       clearTimeout(initialTimer);
-      clearInterval(interval);
+      clearInterval(streamInterval);
+      Object.values(peerConnections).forEach((pc) => pc.close());
+      supabase.removeChannel(streamChannel);
     };
   }, [setupDone, isSubmitted, session]);
 
