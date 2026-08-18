@@ -127,16 +127,36 @@ export async function GET(req: NextRequest) {
             equals: hallTicket,
             mode: "insensitive"
           }
+        },
+        include: {
+          exam: true
         }
       });
 
       if (!data) return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
 
       const mapped = {
+        id: data.id,
         candidate_name: data.candidateName,
         hall_ticket_number: data.hallTicketNumber,
+        registration_number: data.registrationNumber,
         email: data.email,
+        phone: data.phone,
+        college: data.college,
+        department: data.department,
+        year_of_study: data.yearOfStudy,
+        photo_url: data.photoUrl,
+        created_at: data.createdAt,
         exam_id: data.examId,
+        exam: data.exam ? {
+          id: data.exam.id,
+          name: data.exam.name,
+          date: data.exam.date,
+          time: data.exam.time,
+          company_name: data.exam.companyName,
+          total_qns: data.exam.totalQns,
+          types_of_qns: data.exam.typesOfQns,
+        } : null,
         answers: data.answers || {}
       };
 
