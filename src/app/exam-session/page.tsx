@@ -612,6 +612,18 @@ export default function ExamSessionPage() {
       try {
         const parsed = JSON.parse(raw);
 
+        // 1. Read local backup draft
+        let localAnswers: Record<number, string> = {};
+        try {
+          const rawLocal = localStorage.getItem(`exam_draft_answers_${parsed.hallTicketNumber}`);
+          if (rawLocal) {
+            localAnswers = JSON.parse(rawLocal);
+          }
+        } catch (e) {
+          console.error("Failed to parse local draft answers:", e);
+        }
+
+        // 2. Fetch server database answers
         let dbAnswers: Record<number, string> = {};
         let dbBlocked = false;
         try {
@@ -641,47 +653,45 @@ export default function ExamSessionPage() {
         // Clear local storage lock since the database says it's active and allowed
         localStorage.removeItem(`exam_violated_${parsed.hallTicketNumber}`);
 
+        // Merge local answers and DB answers to guarantee zero data loss
+        const combinedAnswers: Record<number, string> = { ...localAnswers, ...dbAnswers };
+
+        try {
+          localStorage.setItem(`exam_draft_answers_${parsed.hallTicketNumber}`, JSON.stringify(combinedAnswers));
+        } catch (e) {}
+
         setSession(parsed);
 
         let loadedQuestions = QUESTIONS.map((q) => ({ ...q }));
 
-        // ── Redlix Training Exam 01 ─────────────────────────────────────────
+        // ── Question Bank & Duration Setup ──────────────────────────────────
+        let totalDurationSeconds = 180 * 60;
         const examNameLower = (parsed.exam.name || "").toLowerCase();
         if (examNameLower.includes("technical")) {
-          // Use the dedicated 50 Technical Wing question bank (15 Section A, 10 Section B, 25 Section C)
           loadedQuestions = TECHNICAL_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(120 * 60);
+          totalDurationSeconds = 120 * 60;
         } else if (examNameLower.includes("business") || examNameLower.includes("bussiness")) {
-          // Use the dedicated 50 MCQs Business Analysis Wing question bank
           loadedQuestions = BUSINESS_ANALYSIS_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("sales")) {
-          // Use the dedicated 50 MCQs Sales and Marketing Wing question bank
           loadedQuestions = SALES_MARKETING_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("ui") || examNameLower.includes("ux")) {
-          // Use the dedicated 50 MCQs UI & UX Wing question bank
           loadedQuestions = UIUX_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("data analytics") || examNameLower.includes("analytics")) {
-          // Use the dedicated 50 MCQs Data Analytics Wing question bank
           loadedQuestions = ANALYTICS_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("marketing")) {
-          // Use the dedicated 50 MCQs Marketing Wing question bank
           loadedQuestions = MARKETING_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("redlix training exam 01")) {
-          // Use the dedicated training question bank (no shuffle needed)
           loadedQuestions = TRAINING01_QUESTIONS.map((q) => ({ ...q }));
           setIsTraining01(true);
-          // 75-minute exam for Training Exam 01
-          setTimeLeft(75 * 60);
+          totalDurationSeconds = 75 * 60;
         } else if (examNameLower.includes("redlix phase - 02") || examNameLower.includes("final phase")) {
-          // Use the Phase 02 questions
           loadedQuestions = PHASE02_QUESTIONS.map((q) => ({ ...q }));
-          // 120-minute exam for Phase 02
-          setTimeLeft(120 * 60);
+          totalDurationSeconds = 120 * 60;
         } else if (parsed.exam.id === 4 || examNameLower.includes("student forge")) {
           const sectionA = loadedQuestions.filter((q) => q.section === "A");
           const sectionB = loadedQuestions.filter((q) => q.section === "B");
@@ -695,10 +705,26 @@ export default function ExamSessionPage() {
           });
           loadedQuestions = [...shuffledA, ...shuffledB];
         }
+
+        // Restore or initialize timer
+        try {
+          const storedStartTime = localStorage.getItem(`exam_start_time_${parsed.hallTicketNumber}`);
+          if (storedStartTime) {
+            const elapsed = Math.floor((Date.now() - Number(storedStartTime)) / 1000);
+            const remaining = Math.max(10, totalDurationSeconds - elapsed);
+            setTimeLeft(remaining);
+          } else {
+            localStorage.setItem(`exam_start_time_${parsed.hallTicketNumber}`, Date.now().toString());
+            setTimeLeft(totalDurationSeconds);
+          }
+        } catch {
+          setTimeLeft(totalDurationSeconds);
+        }
+
         setQuestions(loadedQuestions);
 
         setAnswers((prev) => {
-          const initialAnswers = { ...prev, ...dbAnswers };
+          const initialAnswers = { ...prev, ...combinedAnswers };
           loadedQuestions.forEach((q) => {
             if (q.type === "coding" && q.starterCode && !initialAnswers[q.id]) {
               initialAnswers[q.id] = q.starterCode;
@@ -710,10 +736,10 @@ export default function ExamSessionPage() {
         setQuestionStatuses((prev) => {
           const statuses = { ...prev };
           loadedQuestions.forEach((q) => {
-            const ans = dbAnswers[q.id];
-            if (ans && ans.trim() !== "") {
+            const ans = combinedAnswers[q.id];
+            if (ans && ans.toString().trim() !== "") {
               if (q.type === "coding" && q.starterCode) {
-                statuses[q.id] = ans.trim() !== q.starterCode.trim() ? "answered" : "not_answered";
+                statuses[q.id] = ans.toString().trim() !== q.starterCode.trim() ? "answered" : "not_answered";
               } else {
                 statuses[q.id] = "answered";
               }
@@ -724,7 +750,8 @@ export default function ExamSessionPage() {
           if (loadedQuestions.length > 0) {
             const firstQId = loadedQuestions[0].id;
             if (!statuses[firstQId] || statuses[firstQId] === "not_visited") {
-              statuses[firstQId] = "not_answered";
+              const firstAns = combinedAnswers[firstQId];
+              statuses[firstQId] = firstAns && firstAns.toString().trim() !== "" ? "answered" : "not_answered";
             }
           }
           return statuses;
@@ -1144,7 +1171,13 @@ export default function ExamSessionPage() {
   const saveAnswersToDb = useCallback(async (currentAnswers: Record<number, string>) => {
     if (!session?.hallTicketNumber) return;
     try {
-      const res = await fetch("/api/exam/save-answers", {
+      // 1. Instant local persistence backup
+      try {
+        localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(currentAnswers));
+      } catch (e) {}
+
+      // 2. Server persistence
+      await fetch("/api/exam/save-answers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1154,23 +1187,42 @@ export default function ExamSessionPage() {
           answers: currentAnswers,
         }),
       });
-      if (!res.ok) {
-        console.error("Failed to auto-save answers");
-      }
     } catch (err) {
       console.error("Error in auto-saving answers:", err);
     }
   }, [session?.hallTicketNumber]);
 
+  // Periodic backup auto-save every 5 seconds
   useEffect(() => {
     if (!setupDone || isSubmitted || !session?.hallTicketNumber) return;
 
     const timer = setTimeout(() => {
       saveAnswersToDb(answers);
-    }, 2000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [answers, setupDone, isSubmitted, session?.hallTicketNumber, saveAnswersToDb]);
+
+  // Save on tab close / power failure / navigation
+  useEffect(() => {
+    if (!setupDone || isSubmitted || !session?.hallTicketNumber) return;
+
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(answers));
+        const blob = new Blob(
+          [JSON.stringify({ hallTicketNumber: session.hallTicketNumber, answers })],
+          { type: "application/json" }
+        );
+        navigator.sendBeacon("/api/exam/save-answers", blob);
+      } catch (e) {}
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [setupDone, isSubmitted, session?.hallTicketNumber, answers]);
 
   useEffect(() => {
     return () => {
@@ -1247,23 +1299,57 @@ export default function ExamSessionPage() {
   };
 
   const handleAnswerChange = (val: string) => {
-    setAnswers((prev) => ({ ...prev, [questions[currentIndex].id]: val }));
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+    const qId = currentQ.id;
+
+    setAnswers((prev) => {
+      const updated = { ...prev, [qId]: val };
+      
+      // 1. Instant synchronous local storage backup (0ms recovery)
+      if (session?.hallTicketNumber) {
+        try {
+          localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(updated));
+        } catch (e) {}
+      }
+
+      // 2. Background database sync
+      saveAnswersToDb(updated);
+
+      return updated;
+    });
+
+    setQuestionStatuses((prev) => ({
+      ...prev,
+      [qId]: val && val.trim() !== "" ? "answered" : "not_answered",
+    }));
   };
 
   const handleClearResponse = () => {
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+
     setAnswers((prev) => {
       const next = { ...prev };
-      const currentQ = questions[currentIndex];
       if (currentQ.type === "coding" && currentQ.starterCode) {
         next[currentQ.id] = currentQ.starterCode;
       } else {
         delete next[currentQ.id];
       }
+
+      if (session?.hallTicketNumber) {
+        try {
+          localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(next));
+        } catch (e) {}
+      }
+
+      saveAnswersToDb(next);
       return next;
     });
+
     setQuestionStatuses((prev) => ({
       ...prev,
-      [questions[currentIndex].id]: "not_answered",
+      [currentQ.id]: "not_answered",
     }));
   };
 
