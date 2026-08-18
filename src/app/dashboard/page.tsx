@@ -161,6 +161,10 @@ export default function Dashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [selectedExamForCandidates, setSelectedExamForCandidates] = useState<Exam | null>(null);
   const [selectedCandidateForAnswers, setSelectedCandidateForAnswers] = useState<Registration | null>(null);
+  const [answersModalFilter, setAnswersModalFilter] = useState<"all" | "correct" | "incorrect" | "unattempted">("all");
+  const [enableNegativeMarking, setEnableNegativeMarking] = useState<boolean>(true);
+  const [negativeMarkValue, setNegativeMarkValue] = useState<number>(0.5);
+  const [copiedHallTicket, setCopiedHallTicket] = useState(false);
   const [loadingExamsTab, setLoadingExamsTab] = useState(false);
 
   const fetchExamsAndRegistrations = async () => {
@@ -2181,465 +2185,538 @@ export default function Dashboard() {
 
       const isQuestionAttempted = (q: typeof QUESTIONS[0]) => {
         const ans = candidate.answers?.[q.id];
-        if (!ans || ans.trim() === "") return false;
+        if (!ans || ans.toString().trim() === "") return false;
         if (q.type === "coding" && q.starterCode) {
-          return ans.trim() !== q.starterCode.trim();
+          return ans.toString().trim() !== q.starterCode.trim();
         }
         return true;
       };
 
-      const mcqAttempted = mcqQuestions.filter(isQuestionAttempted).length;
+      const getQuestionCorrectLetter = (qId: number) => {
+        if (isBusinessAnalysisExam) return BUSINESS_ANALYSIS_ANSWER_KEY[qId];
+        if (isSalesMarketingExam) return SALES_MARKETING_ANSWER_KEY[qId];
+        if (isTechnicalExam) return TECHNICAL_ANSWER_KEY[qId];
+        if (isUIUXExam) return UIUX_ANSWER_KEY[qId];
+        if (isMarketingExam) return MARKETING_ANSWER_KEY[qId];
+        if (isAnalyticsExam) return ANALYTICS_ANSWER_KEY[qId];
+        return null;
+      };
+
+      // ── Calculate Granular Evaluation Metrics ────────────────
+      let totalCorrect = 0;
+      let totalIncorrect = 0;
+      let totalSkipped = 0;
+
+      mcqQuestions.forEach((q) => {
+        const rawAns = candidate.answers?.[q.id];
+        const selectedLetter = rawAns ? rawAns.toString().trim().charAt(0).toUpperCase() : "";
+        const attempted = isQuestionAttempted(q);
+        const correctLetter = getQuestionCorrectLetter(q.id);
+
+        if (!attempted) {
+          totalSkipped++;
+        } else if (correctLetter && selectedLetter === correctLetter) {
+          totalCorrect++;
+        } else if (correctLetter && selectedLetter && selectedLetter !== correctLetter) {
+          totalIncorrect++;
+        } else {
+          totalSkipped++;
+        }
+      });
+
+      const totalAttempted = mcqQuestions.filter(isQuestionAttempted).length;
       const codingAttempted = codingQuestions.filter(isQuestionAttempted).length;
+      const marksPerCorrect = 2.0;
+      const grossMarks = totalCorrect * marksPerCorrect;
+      const totalPenalty = enableNegativeMarking ? totalIncorrect * negativeMarkValue : 0;
+      const netMarks = Math.max(0, grossMarks - totalPenalty);
+      const totalMaxMarks = mcqQuestions.length * 2 + (codingQuestions.length > 0 ? codingQuestions.length * 10 : 0);
+      const netPercentage = totalMaxMarks > 0 ? ((netMarks / totalMaxMarks) * 100).toFixed(1) : "0.0";
+      const grossPercentage = totalMaxMarks > 0 ? ((grossMarks / totalMaxMarks) * 100).toFixed(1) : "0.0";
+      const accuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;
+      const isPassed = Number(netPercentage) >= 40.0;
+
+      // Filtered questions based on selected tab
+      const filteredMcqQuestions = mcqQuestions.filter((q) => {
+        const rawAns = candidate.answers?.[q.id];
+        const selectedLetter = rawAns ? rawAns.toString().trim().charAt(0).toUpperCase() : "";
+        const attempted = isQuestionAttempted(q);
+        const correctLetter = getQuestionCorrectLetter(q.id);
+
+        if (answersModalFilter === "correct") {
+          return attempted && correctLetter && selectedLetter === correctLetter;
+        }
+        if (answersModalFilter === "incorrect") {
+          return attempted && correctLetter && selectedLetter && selectedLetter !== correctLetter;
+        }
+        if (answersModalFilter === "unattempted") {
+          return !attempted;
+        }
+        return true;
+      });
 
       return (
-        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in select-text">
-          <div className="relative w-full max-w-4xl bg-white border border-zinc-250 rounded-none overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-zinc-950/70 backdrop-blur-md flex items-center justify-center p-3 md:p-6 z-50 animate-fade-in select-text">
+          <div className="relative w-full max-w-5xl bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-2xl flex flex-col max-h-[94vh]">
             
-            {/* Modal Header */}
-            <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
-              <div>
-                <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-orange-600 leading-none">assignment_ind</span>
-                  Answers Review: {candidate.candidate_name}
-                </h3>
-                <p className="text-[11px] text-zinc-500">
-                  Hall Ticket: <span className="font-mono font-bold text-zinc-700">{candidate.hall_ticket_number}</span> • Exam: <span className="font-semibold text-zinc-700">{exam?.name || "Technical Assessment"}</span>
-                </p>
+            {/* ── Modal Header: Candidate & Exam Identity ──────── */}
+            <div className="px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-800 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
+                  {candidate.candidate_name ? candidate.candidate_name.substring(0, 2).toUpperCase() : "ST"}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-white tracking-tight">
+                      {candidate.candidate_name}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Verified Candidate
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-zinc-300 mt-1 flex-wrap font-mono">
+                    <span className="flex items-center gap-1">
+                      HT: <strong className="text-white">{candidate.hall_ticket_number}</strong>
+                      <button
+                        onClick={() => {
+                          if (candidate.hall_ticket_number) {
+                            navigator.clipboard.writeText(candidate.hall_ticket_number);
+                            setCopiedHallTicket(true);
+                            setTimeout(() => setCopiedHallTicket(false), 2000);
+                          }
+                        }}
+                        title="Copy Hall Ticket Number"
+                        className="text-zinc-400 hover:text-white transition-colors cursor-pointer bg-transparent border-none p-0.5"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">
+                          {copiedHallTicket ? "check" : "content_copy"}
+                        </span>
+                      </button>
+                    </span>
+                    <span className="text-zinc-600">•</span>
+                    <span>Reg ID: <strong className="text-zinc-200">{candidate.registration_number || "SF-2026"}</strong></span>
+                    <span className="text-zinc-600">•</span>
+                    <span className="font-sans text-zinc-300 font-medium truncate max-w-xs">{exam?.name || "Wing Examination 2026"}</span>
+                  </div>
+                </div>
               </div>
-              <button 
-                onClick={() => setSelectedCandidateForAnswers(null)} 
-                className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <span className="material-symbols-outlined text-md">close</span>
-              </button>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Evaluation Status</p>
+                  <p className="text-xs font-semibold text-zinc-200">Official Key Verified</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedCandidateForAnswers(null)} 
+                  className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-zinc-700 shrink-0"
+                >
+                  <span className="material-symbols-outlined text-lg leading-none">close</span>
+                </button>
+              </div>
             </div>
 
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 border-b border-zinc-200 bg-zinc-50/50 shrink-0 divide-x divide-zinc-200 text-center py-2.5">
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">Total Progress</p>
-                <p className="text-sm font-bold text-zinc-800 mt-0.5">
-                  {mcqAttempted + codingAttempted} / {candidateQuestions.length} Attempted
-                </p>
+            {/* ── Executive Performance & Negative Marking Overview ── */}
+            <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-200 shrink-0 space-y-4">
+              
+              {/* Primary Scorecard Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                
+                {/* Total Marks / Net Score */}
+                <div className="bg-white p-3 rounded-lg border border-zinc-200 shadow-xs flex flex-col justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    {enableNegativeMarking ? "Net Score (Final)" : "Total Marks"}
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-xl font-extrabold text-zinc-900 leading-none">
+                      {netMarks.toFixed(1)} <span className="text-xs font-semibold text-zinc-400">/ {totalMaxMarks}</span>
+                    </p>
+                    <p className="text-[10px] font-medium text-zinc-500 mt-1">
+                      {netPercentage}% Total Score
+                    </p>
+                  </div>
+                </div>
+
+                {/* Correct Answers */}
+                <div className="bg-emerald-50/60 p-3 rounded-lg border border-emerald-200 shadow-xs flex flex-col justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                    Correct
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-xl font-extrabold text-emerald-700 leading-none">
+                      {totalCorrect} <span className="text-xs font-semibold text-emerald-600/70">/ {mcqQuestions.length}</span>
+                    </p>
+                    <p className="text-[10px] font-bold text-emerald-700 mt-1">
+                      +{grossMarks.toFixed(1)} Marks ({totalCorrect} × 2.0)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Incorrect Answers */}
+                <div className="bg-rose-50/60 p-3 rounded-lg border border-rose-200 shadow-xs flex flex-col justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                    Incorrect
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-xl font-extrabold text-rose-700 leading-none">
+                      {totalIncorrect} <span className="text-xs font-semibold text-rose-600/70">/ {mcqQuestions.length}</span>
+                    </p>
+                    <p className="text-[10px] font-bold text-rose-700 mt-1">
+                      {enableNegativeMarking ? `-${totalPenalty.toFixed(1)} Negative Penalty` : "0.0 Penalty"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Unattempted / Skipped */}
+                <div className="bg-zinc-100/80 p-3 rounded-lg border border-zinc-200 shadow-xs flex flex-col justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                    Skipped
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-xl font-extrabold text-zinc-700 leading-none">
+                      {totalSkipped} <span className="text-xs font-semibold text-zinc-400">/ {mcqQuestions.length}</span>
+                    </p>
+                    <p className="text-[10px] font-medium text-zinc-500 mt-1">
+                      0.0 Marks Impact
+                    </p>
+                  </div>
+                </div>
+
+                {/* Accuracy */}
+                <div className="bg-white p-3 rounded-lg border border-zinc-200 shadow-xs flex flex-col justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Accuracy Rate
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-xl font-extrabold text-indigo-700 leading-none">
+                      {accuracy}%
+                    </p>
+                    <p className="text-[10px] font-medium text-zinc-500 mt-1">
+                      {totalCorrect} of {totalAttempted} Attempted
+                    </p>
+                  </div>
+                </div>
+
+                {/* Pass/Fail Status */}
+                <div className={`p-3 rounded-lg border shadow-xs flex flex-col justify-between text-white ${
+                  isPassed 
+                    ? "bg-gradient-to-br from-emerald-600 to-emerald-700 border-emerald-700" 
+                    : "bg-gradient-to-br from-rose-600 to-rose-700 border-rose-700"
+                }`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider opacity-85">
+                    Result Status
+                  </p>
+                  <div className="mt-1">
+                    <p className="text-lg font-black tracking-wider leading-none">
+                      {isPassed ? "PASSED" : "FAILED"}
+                    </p>
+                    <p className="text-[9px] font-semibold opacity-90 mt-1">
+                      Cut-off: 40% (40/100)
+                    </p>
+                  </div>
+                </div>
+
               </div>
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">MCQs Section</p>
-                <p className="text-sm font-bold text-emerald-600 mt-0.5">
-                  {mcqAttempted} / {mcqQuestions.length} Answered
-                </p>
+
+              {/* Negative Marking Control & Formula Bar */}
+              <div className="bg-white p-3 rounded-lg border border-zinc-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={enableNegativeMarking}
+                      onChange={(e) => setEnableNegativeMarking(e.target.checked)}
+                      className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-zinc-300 cursor-pointer accent-orange-600"
+                    />
+                    <span className="font-bold text-zinc-800">
+                      Apply Negative Marking
+                    </span>
+                  </label>
+
+                  {enableNegativeMarking && (
+                    <div className="flex items-center gap-1.5 pl-2 border-l border-zinc-200">
+                      <span className="text-zinc-500 text-[11px]">Deduction Rate:</span>
+                      <select
+                        value={negativeMarkValue}
+                        onChange={(e) => setNegativeMarkValue(Number(e.target.value))}
+                        className="text-xs bg-zinc-50 border border-zinc-300 rounded px-2 py-1 font-semibold text-zinc-800 outline-none focus:border-orange-500 cursor-pointer"
+                      >
+                        <option value={0.5}>-0.50 Marks (1/4th of 2.0)</option>
+                        <option value={0.66}>-0.66 Marks (1/3rd of 2.0)</option>
+                        <option value={1.0}>-1.00 Marks (1/2 of 2.0)</option>
+                        <option value={0.25}>-0.25 Marks (1/8th of 2.0)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[11px] font-mono text-zinc-600 bg-zinc-50 px-2.5 py-1 rounded border border-zinc-200">
+                  Formula: <span className="text-emerald-700 font-bold">({totalCorrect} × 2.0)</span>
+                  {enableNegativeMarking ? (
+                    <> - <span className="text-rose-700 font-bold">({totalIncorrect} × {negativeMarkValue})</span> = <strong className="text-zinc-950 font-bold">{netMarks.toFixed(1)} Marks</strong></>
+                  ) : (
+                    <> = <strong className="text-zinc-950 font-bold">{grossMarks.toFixed(1)} Marks (Gross)</strong></>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">{isPhase02Exam ? "Scenarios" : codingQuestions.length > 0 ? "Coding Tasks" : "Evaluation"}</p>
-                <p className="text-sm font-bold text-indigo-600 mt-0.5">
-                  {codingAttempted} / {codingQuestions.length} {isPhase02Exam ? "Answered" : "Attempted"}
-                </p>
+
+              {/* Filter Tabs Bar */}
+              <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setAnswersModalFilter("all")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer border ${
+                      answersModalFilter === "all"
+                        ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                        : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
+                    }`}
+                  >
+                    All Questions ({mcqQuestions.length})
+                  </button>
+                  <button
+                    onClick={() => setAnswersModalFilter("correct")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer border ${
+                      answersModalFilter === "correct"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                        : "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                    }`}
+                  >
+                    ✓ Correct ({totalCorrect})
+                  </button>
+                  <button
+                    onClick={() => setAnswersModalFilter("incorrect")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer border ${
+                      answersModalFilter === "incorrect"
+                        ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                        : "bg-white text-rose-700 border-rose-200 hover:bg-rose-50"
+                    }`}
+                  >
+                    ✗ Incorrect ({totalIncorrect})
+                  </button>
+                  <button
+                    onClick={() => setAnswersModalFilter("unattempted")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer border ${
+                      answersModalFilter === "unattempted"
+                        ? "bg-zinc-700 text-white border-zinc-700 shadow-xs"
+                        : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
+                    }`}
+                  >
+                    ○ Skipped ({totalSkipped})
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-zinc-500 font-medium">
+                  Showing <strong className="text-zinc-800">{filteredMcqQuestions.length}</strong> of {mcqQuestions.length} MCQs
+                </div>
               </div>
+
             </div>
 
-            {/* Technical Wing — Score Banner */}
-            {isTechnicalExam && technicalGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Technical Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQs</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{technicalGrade.secAMarks} / 30</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.secACorrect} / 15 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B MCQs</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">{technicalGrade.secBMarks} / 20</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.secBCorrect} / 10 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-zinc-900 mt-0.5">{technicalGrade.totalMarks} / 50</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${technicalGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{technicalGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40% (20/50)</p>
-                  </div>
+            {/* ── Question & Answer Breakdown ──────────────────── */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-zinc-100/50">
+              
+              {filteredMcqQuestions.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-xl border border-zinc-200">
+                  <span className="material-symbols-outlined text-4xl text-zinc-400">filter_alt_off</span>
+                  <p className="text-sm font-bold text-zinc-700 mt-2">No questions match the selected filter.</p>
+                  <p className="text-xs text-zinc-400 mt-1">Switch back to "All Questions" to view the complete assessment.</p>
+                  <button
+                    onClick={() => setAnswersModalFilter("all")}
+                    className="mt-4 px-4 py-2 bg-zinc-900 text-white text-xs font-bold rounded-md hover:bg-zinc-800 transition-colors cursor-pointer border-none"
+                  >
+                    View All Questions
+                  </button>
                 </div>
-              </div>
-            )}
+              ) : (
+                filteredMcqQuestions.map((q) => {
+                  const rawAns = candidate.answers?.[q.id];
+                  const selectedLetter = rawAns ? rawAns.toString().trim().charAt(0).toUpperCase() : "";
+                  const attempted = isQuestionAttempted(q);
+                  const correctLetter = getQuestionCorrectLetter(q.id);
+                  const isCorrect = correctLetter && selectedLetter && selectedLetter === correctLetter;
+                  const isWrong = attempted && correctLetter && selectedLetter && selectedLetter !== correctLetter;
 
-            {/* Business Analysis Wing — Score Banner */}
-            {isBusinessAnalysisExam && businessAnalysisGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-sky-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-sky-700 mb-2">
-                  🔒 Business Analysis Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-sky-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{businessAnalysisGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-sky-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{businessAnalysisGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-sky-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-sky-900 mt-0.5">{businessAnalysisGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{businessAnalysisGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${businessAnalysisGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{businessAnalysisGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40% (40/100)</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sales and Marketing Wing — Score Banner */}
-            {isSalesMarketingExam && salesMarketingGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-amber-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-amber-700 mb-2">
-                  🔒 Sales and Marketing Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-amber-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{salesMarketingGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-amber-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{salesMarketingGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-amber-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-amber-900 mt-0.5">{salesMarketingGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{salesMarketingGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${salesMarketingGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{salesMarketingGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40% (40/100)</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* UI & UX Wing — Score Banner */}
-            {isUIUXExam && uiuxGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-purple-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-purple-700 mb-2">
-                  🔒 UI & UX Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{uiuxGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{uiuxGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-purple-900 mt-0.5">{uiuxGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{uiuxGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${uiuxGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{uiuxGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Marketing Wing — Score Banner */}
-            {isMarketingExam && marketingGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-blue-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-700 mb-2">
-                  🔒 Marketing Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{marketingGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{marketingGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-blue-900 mt-0.5">{marketingGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{marketingGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${marketingGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{marketingGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Data Analytics Wing — Score Banner */}
-            {isAnalyticsExam && analyticsGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-emerald-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-700 mb-2">
-                  🔒 Data Analytics Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{analyticsGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{analyticsGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-emerald-900 mt-0.5">{analyticsGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{analyticsGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${analyticsGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{analyticsGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Training Exam 01 — Auto-Grade Score Banner (Admin Only, NEVER shown to candidate) */}
-            {isTraining01Exam && training01Grade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Auto-Graded Score — Redlix Training Exam 01 (Admin View Only — Not Shown to Candidate)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQ</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">
-                      {training01Grade.mcq.marksObtained} / 15
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{training01Grade.mcq.correct} correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B Scenario</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">
-                      {training01Grade.scenario.marksObtained} / 10
-                    </p>
-                    <p className="text-[9px] text-zinc-400">MCQ auto-score</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec C Coding</p>
-                    <p className="text-sm font-bold text-indigo-700 mt-0.5">
-                      {training01Grade.coding.marksObtained} / 40
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{training01Grade.coding.attempted}/4 submitted</p>
-                  </div>
-                  <div className="bg-orange-500 border border-orange-600 p-2 text-center">
-                    <p className="text-[9px] text-orange-100 uppercase font-bold">Total Auto</p>
-                    <p className="text-sm font-bold text-white mt-0.5">
-                      {training01Grade.totalAutoMarks} / 65
-                    </p>
-                    <p className="text-[9px] text-orange-200">Manual review needed</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phase 02 — Auto-Grade Score Banner (Admin Only, NEVER shown to candidate) */}
-            {isPhase02Exam && phase02Grade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Auto-Graded Score — Redlix Phase - 02 (Final Phase) (Admin View Only)
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQ</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">
-                      {phase02Grade.mcq.marksObtained} / 76
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{phase02Grade.mcq.correct} / 19 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B Scenarios</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">
-                      {phase02Grade.open.attempted} / 8
-                    </p>
-                    <p className="text-[9px] text-zinc-400">Manual review required</p>
-                  </div>
-                  <div className="bg-orange-500 border border-orange-600 p-2 text-center flex flex-col justify-center">
-                    <p className="text-[9px] text-orange-100 uppercase font-bold">Total Auto Marks</p>
-                    <p className="text-sm font-bold text-white mt-0.5">
-                      {phase02Grade.totalAutoMarks} / 156
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {}
-              <div className="space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-widest text-orange-600 border-b border-zinc-200 pb-1 flex items-center justify-between">
-                  <span>Section A: Multiple Choice Questions ({mcqQuestions.length})</span>
-                  <span className="text-[10px] text-zinc-400 normal-case font-normal">{isTraining01Exam ? "(Fixed order — Redlix Training Exam 01)" : isPhase02Exam ? "(Fixed order — Redlix Phase - 02)" : "(Shuffled in student's view)"}</span>
-                </h4>
-                <div className="space-y-3">
-                  {mcqQuestions.map((q) => {
-                    const rawAns = candidate.answers?.[q.id];
-                    const selectedLetter = rawAns ? rawAns.toString().trim().charAt(0).toUpperCase() : "";
-                    const attempted = isQuestionAttempted(q);
-
-                    const correctLetter = 
-                      isBusinessAnalysisExam ? BUSINESS_ANALYSIS_ANSWER_KEY[q.id] :
-                      isSalesMarketingExam ? SALES_MARKETING_ANSWER_KEY[q.id] :
-                      isTechnicalExam ? TECHNICAL_ANSWER_KEY[q.id] :
-                      isUIUXExam ? UIUX_ANSWER_KEY[q.id] :
-                      isMarketingExam ? MARKETING_ANSWER_KEY[q.id] :
-                      isAnalyticsExam ? ANALYTICS_ANSWER_KEY[q.id] :
-                      null;
-
-                    const isCorrect = correctLetter && selectedLetter ? selectedLetter === correctLetter : false;
-
-                    return (
-                      <div key={q.id} className="p-3.5 border border-zinc-200 bg-white space-y-3">
-                        <div className="flex justify-between items-start gap-4">
-                          <h5 className="text-xs font-bold text-zinc-800 leading-relaxed">
-                            Question {q.number}: <span className="font-normal text-zinc-650 whitespace-pre-wrap">{q.questionText}</span>
-                          </h5>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {correctLetter && attempted && (
-                              <span className={`text-[9px] font-bold px-2 py-0.5 border ${
-                                isCorrect 
-                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
-                                  : "bg-red-100 text-red-800 border-red-300"
-                              }`}>
-                                {isCorrect ? "✓ Correct (+2)" : "✗ Incorrect (0)"}
-                              </span>
-                            )}
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${
-                              attempted 
-                                ? "bg-zinc-100 text-zinc-700 border-zinc-300" 
-                                : "bg-zinc-50 text-zinc-400 border-zinc-200"
-                            }`}>
-                              {attempted ? "Attempted" : "Not Attempted"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-3">
-                          {q.options?.map((opt) => {
-                            const letter = opt.substring(0, 1).toUpperCase();
-                            const isSelected = selectedLetter === letter;
-                            const isThisCorrect = correctLetter === letter;
-
-                            return (
-                              <div 
-                                key={opt}
-                                className={`p-2 border text-xs flex items-center justify-between gap-2 ${
-                                  isSelected && isThisCorrect
-                                    ? "bg-emerald-50 border-emerald-400 font-semibold text-emerald-950"
-                                    : isSelected && !isThisCorrect
-                                    ? "bg-red-50 border-red-300 font-semibold text-red-950"
-                                    : isThisCorrect
-                                    ? "bg-emerald-50/50 border-emerald-300/80 font-medium text-emerald-900 border-dashed"
-                                    : "bg-zinc-50 border-zinc-200 text-zinc-600"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className={`w-4 h-4 flex items-center justify-center text-[9px] font-bold border rounded-full ${
-                                    isSelected && isThisCorrect
-                                      ? "bg-emerald-600 border-emerald-600 text-white"
-                                      : isSelected && !isThisCorrect
-                                      ? "bg-red-600 border-red-600 text-white"
-                                      : isThisCorrect
-                                      ? "bg-emerald-100 border-emerald-400 text-emerald-800"
-                                      : "border-zinc-300 text-zinc-400 bg-white"
-                                  }`}>
-                                    {letter}
-                                  </span>
-                                  <span className="font-sans leading-none">{opt.substring(3)}</span>
-                                </div>
-                                {isSelected && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 bg-white/80 rounded border border-zinc-200">
-                                    Candidate
-                                  </span>
-                                )}
-                                {!isSelected && isThisCorrect && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                                    Key
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {}
-              <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 border-b border-zinc-200 pb-1 flex items-center justify-between">
-                  <span>Section B: {codingQuestions.some(q => q.type === "open") ? "Scenario-Based / Open-Ended" : "Coding Challenges"} ({codingQuestions.length})</span>
-                  <span className="text-[10px] text-zinc-400 normal-case font-normal">(Shuffled in student's view)</span>
-                </h4>
-                <div className="space-y-4">
-                  {codingQuestions.map((q) => {
-                    const solutionCode = candidate.answers?.[q.id];
-                    const attempted = isQuestionAttempted(q);
-
-                    return (
-                      <div key={q.id} className="p-3.5 border border-zinc-200 bg-white space-y-3">
-                        <div className="flex justify-between items-start gap-4">
-                          <h5 className="text-xs font-bold text-zinc-800 leading-relaxed">
-                            {q.type === "open" ? "Open-Ended Question" : "Coding Challenge"} {q.number}: <span className="font-normal text-zinc-650">{q.questionText.split("\n")[0]}</span>
-                          </h5>
-                          <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 border ${
-                            attempted 
-                              ? "bg-indigo-50 text-indigo-700 border-indigo-250" 
-                              : "bg-red-50 text-red-700 border-red-250"
-                          }`}>
-                            {attempted ? "Attempted" : "Not Attempted"}
+                  return (
+                    <div 
+                      key={q.id} 
+                      className={`p-5 rounded-xl border transition-all ${
+                        isCorrect 
+                          ? "bg-white border-emerald-200/80 shadow-xs" 
+                          : isWrong 
+                          ? "bg-white border-rose-200/80 shadow-xs" 
+                          : "bg-white border-zinc-200 shadow-xs"
+                      }`}
+                    >
+                      {/* Question Top Bar */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-md text-xs font-extrabold font-mono bg-zinc-900 text-white">
+                            Q{q.number}
+                          </span>
+                          <span className="text-xs font-semibold text-zinc-500">
+                            {q.section ? `Section ${q.section}` : "Multiple Choice"}
                           </span>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-450 font-mono">Candidate Submission</p>
-                          {attempted && solutionCode ? (
-                            <pre className="bg-zinc-950 text-zinc-300 font-mono text-[11px] p-3.5 border border-zinc-800 overflow-x-auto whitespace-pre rounded-none max-h-72">
-                              {solutionCode}
-                            </pre>
-                          ) : (
-                            <div className="p-3 bg-zinc-50 border border-zinc-200 text-zinc-400 text-xs italic font-sans">
-                              No solution submitted for this challenge.
-                            </div>
+                        {/* Marks & Status Pill */}
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          {isCorrect && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <span>✓ Correct</span>
+                              <span className="font-mono font-black">+2.00 Marks</span>
+                            </span>
+                          )}
+
+                          {isWrong && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                              <span>✗ Incorrect</span>
+                              <span className="font-mono font-black">
+                                {enableNegativeMarking ? `-${negativeMarkValue.toFixed(2)} Penalty` : "0.00 Marks"}
+                              </span>
+                            </span>
+                          )}
+
+                          {!attempted && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-zinc-100 text-zinc-600 border border-zinc-200">
+                              <span>○ Unattempted</span>
+                              <span className="font-mono">0.00 Marks</span>
+                            </span>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Question Text */}
+                      <div className="py-3">
+                        <p className="text-sm font-semibold text-zinc-900 leading-relaxed whitespace-pre-wrap font-sans">
+                          {q.questionText}
+                        </p>
+                      </div>
+
+                      {/* 4 Options Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                        {q.options?.map((opt) => {
+                          const letter = opt.substring(0, 1).toUpperCase();
+                          const isSelected = selectedLetter === letter;
+                          const isThisCorrect = correctLetter === letter;
+
+                          let cardStyle = "bg-zinc-50/80 border-zinc-200 text-zinc-700 hover:bg-zinc-50";
+                          let badgeStyle = "bg-white text-zinc-600 border-zinc-300";
+
+                          if (isSelected && isThisCorrect) {
+                            cardStyle = "bg-emerald-50 border-emerald-400 text-emerald-950 font-semibold shadow-xs ring-1 ring-emerald-400/50";
+                            badgeStyle = "bg-emerald-600 text-white border-emerald-600";
+                          } else if (isSelected && !isThisCorrect) {
+                            cardStyle = "bg-rose-50 border-rose-300 text-rose-950 font-semibold shadow-xs ring-1 ring-rose-300/50";
+                            badgeStyle = "bg-rose-600 text-white border-rose-600";
+                          } else if (isThisCorrect) {
+                            cardStyle = "bg-emerald-50/50 border-emerald-300 border-dashed text-emerald-900 font-medium";
+                            badgeStyle = "bg-emerald-100 text-emerald-800 border-emerald-300";
+                          }
+
+                          return (
+                            <div
+                              key={opt}
+                              className={`p-3 rounded-lg border text-xs flex items-center justify-between gap-3 transition-all ${cardStyle}`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border shrink-0 ${badgeStyle}`}>
+                                  {letter}
+                                </span>
+                                <span className="font-sans leading-relaxed truncate">{opt.substring(3)}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isSelected && (
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
+                                    isThisCorrect
+                                      ? "bg-emerald-600 text-white border-emerald-600"
+                                      : "bg-rose-600 text-white border-rose-600"
+                                  }`}>
+                                    {isThisCorrect ? "✓ Candidate (Correct)" : "✗ Candidate Choice"}
+                                  </span>
+                                )}
+
+                                {!isSelected && isThisCorrect && (
+                                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    ★ Correct Key
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Section B / Coding Challenges (if applicable) */}
+              {codingQuestions.length > 0 && (
+                <div className="space-y-4 pt-4">
+                  <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-700 border-b border-zinc-200 pb-2 flex items-center justify-between">
+                    <span>Section B: {codingQuestions.some(q => q.type === "open") ? "Scenario-Based / Open-Ended" : "Coding Challenges"} ({codingQuestions.length})</span>
+                    <span className="text-[10px] text-zinc-400 normal-case font-normal">(Technical submission view)</span>
+                  </h4>
+                  <div className="space-y-4">
+                    {codingQuestions.map((q) => {
+                      const solutionCode = candidate.answers?.[q.id];
+                      const attempted = isQuestionAttempted(q);
+
+                      return (
+                        <div key={q.id} className="p-5 rounded-xl border border-zinc-200 bg-white space-y-3 shadow-xs">
+                          <div className="flex justify-between items-start gap-4">
+                            <h5 className="text-xs font-bold text-zinc-900 leading-relaxed">
+                              {q.type === "open" ? "Open Question" : "Task"} {q.number}: <span className="font-normal text-zinc-700">{q.questionText.split("\n")[0]}</span>
+                            </h5>
+                            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              attempted 
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
+                                : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                            }`}>
+                              {attempted ? "Submitted" : "Not Attempted"}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-mono">Candidate Code / Solution</p>
+                            {attempted && solutionCode ? (
+                              <pre className="bg-zinc-950 text-zinc-200 font-mono text-xs p-4 rounded-lg border border-zinc-800 overflow-x-auto whitespace-pre max-h-72">
+                                {solutionCode}
+                              </pre>
+                            ) : (
+                              <div className="p-3.5 bg-zinc-50 rounded-lg border border-zinc-200 text-zinc-400 text-xs italic font-sans">
+                                No solution code submitted for this task.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
+
+            </div>
+
+            {/* ── Modal Footer ─────────────────────────────────── */}
+            <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <div className="text-xs text-zinc-500 font-mono">
+                Candidate: <strong className="text-zinc-800">{candidate.candidate_name}</strong> ({candidate.hall_ticket_number})
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedCandidateForAnswers(null)}
+                  className="px-5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider rounded-lg cursor-pointer border-none transition-all shadow-xs"
+                >
+                  Close Evaluation
+                </button>
               </div>
             </div>
 
-            {}
-            <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-end shrink-0">
-              <button
-                onClick={() => setSelectedCandidateForAnswers(null)}
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider rounded-none cursor-pointer border-none transition-colors"
-              >
-                Close View
-              </button>
-            </div>
           </div>
         </div>
       );
