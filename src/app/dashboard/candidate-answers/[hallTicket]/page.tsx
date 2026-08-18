@@ -4,7 +4,7 @@ import React, { useState, useEffect, use, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 
 import { QUESTIONS } from "@/app/exam-session/questions";
 import { TRAINING01_QUESTIONS } from "@/app/exam-session/training01Questions";
@@ -278,41 +278,44 @@ export default function CandidateAnswersPage({
     setDownloadingPdf(true);
 
     try {
-      // Create clean canvas of the report
       const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      const dataUrl = await toPng(element, {
+        quality: 0.95,
+        pixelRatio: 2,
         backgroundColor: "#ffffff",
-        windowWidth: 1200,
+        cacheBust: true,
       });
 
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-      
+
+      // Load image to determine natural dimensions
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Image render failed"));
+      });
+
+      const imgHeight = (img.height * pdfWidth) / img.width;
       let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeight, undefined, "FAST");
       heightLeft -= pdfHeight;
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        pdf.addImage(dataUrl, "PNG", 0, position, pdfWidth, imgHeight, undefined, "FAST");
         heightLeft -= pdfHeight;
       }
 
-      const fileName = `Assessment_Report_${candidate.hall_ticket_number}_${candidate.candidate_name.replace(/\s+/g, "_")}.pdf`;
+      const fileName = `Assessment_Report_${candidate.hall_ticket_number}_${(candidate.candidate_name || "Candidate").replace(/\s+/g, "_")}.pdf`;
       pdf.save(fileName);
     } catch (error) {
-      console.error("PDF generation failed, falling back to window.print():", error);
+      console.error("PDF generation error, falling back to window.print():", error);
       window.print();
     } finally {
       setDownloadingPdf(false);
