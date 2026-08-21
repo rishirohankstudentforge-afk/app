@@ -9,7 +9,7 @@ export function wrapCodeForPiston(language: string, userCode: string, testCases:
 
   if (language === "python") {
     return `
-import json, sys
+import json, sys, inspect
 
 # --- USER CODE START ---
 ${userCode}
