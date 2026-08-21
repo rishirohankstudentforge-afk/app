@@ -3,11 +3,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaClient } = require("@prisma/client");
 
-const DEFAULT_DATABASE_URL =
-  "postgresql://postgres.bqfcylhnjadiljzpwkve:NpZlAmWSypqwVTKm@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true";
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === "") {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL is not set in environment variables.");
+  }
+}
 
-const connectionString = (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) || DEFAULT_DATABASE_URL;
-
+const connectionString = process.env.DATABASE_URL || "";
 const pool = new Pool({
   connectionString,
   ssl: { rejectUnauthorized: false },
