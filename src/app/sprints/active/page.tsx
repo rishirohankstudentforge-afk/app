@@ -76,6 +76,7 @@ function SprintActiveContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showProctorToast, setShowProctorToast] = useState(false);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -278,7 +279,26 @@ function SprintActiveContent() {
     }
   }, [isLocked, isSubmitted, sprint, participantId]);
 
-  // Proctoring and anti-cheat removed as requested
+  useEffect(() => {
+    if (isLocked || isSubmitted || !sprint || !participantId) return;
+    let stream: MediaStream | null = null;
+
+    const startCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (e) {
+        console.error("Camera access denied or failed:", e);
+      }
+    };
+    startCamera();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [isLocked, isSubmitted, sprint, participantId]);
 
   // Auto-select language based on question title
   useEffect(() => {
@@ -563,6 +583,13 @@ function SprintActiveContent() {
                     </div>
                   </>
                 )}
+              </div>
+              
+              <div className="absolute bottom-4 right-4 w-32 h-24 rounded-lg overflow-hidden border border-zinc-700 shadow-2xl z-50 bg-white">
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white flex items-center gap-1 font-bold">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> REC
+                </div>
               </div>
 
             </div>
