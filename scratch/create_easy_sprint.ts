@@ -184,7 +184,7 @@ async function main() {
       endDate: new Date(Date.now() + 150 * 60 * 1000), // 150 min = 2.5 hrs
       joinCode: sprintId,
       parentHackathonId: mrduHackathon ? mrduHackathon.id : null,
-      questions: JSON.stringify(questions),
+      questions: JSON.stringify({ type: "coding", list: questions }),
       type: "Sprint",
       teamSize: 1
     }

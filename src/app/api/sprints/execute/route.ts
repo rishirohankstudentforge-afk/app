@@ -13,7 +13,8 @@ const VERSIONS: Record<string, string> = {
 
 // The public API (emkc.org) is now whitelist-only. 
 // You MUST set this to your own self-hosted Piston URL in Vercel.
-const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
+const rawUrl = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
+const PISTON_URL = rawUrl.replace(/^["'\s\\]+|["'\s\\]+$/g, '');
 
 export async function POST(req: Request) {
   try {
