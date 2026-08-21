@@ -71,6 +71,7 @@ interface Candidate {
   phone: string | null;
   college: string | null;
   department: string | null;
+  team_name?: string | null;
   created_at: string;
 }
 
@@ -86,6 +87,11 @@ export default function CandidateDashboard() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Team Name Prompt
+  const [showTeamNamePrompt, setShowTeamNamePrompt] = useState(false);
+  const [teamNameInput, setTeamNameInput] = useState("");
+  const [savingTeamName, setSavingTeamName] = useState(false);
 
   // Sprint Lobby Join states
   const [lobbyCode, setLobbyCode] = useState("");
@@ -163,6 +169,12 @@ export default function CandidateDashboard() {
         setPhoneVal(data.candidate.phone || "");
         setCollegeVal(data.candidate.college || "");
         setDeptVal(data.candidate.department || "");
+        setTeamNameInput(data.candidate.team_name || "");
+        
+        // Show team name prompt if not set and not dismissed
+        if (!data.candidate.team_name && localStorage.getItem("team_name_prompted") !== "true") {
+          setShowTeamNamePrompt(true);
+        }
       }
     } catch (err) {
       setErrorMsg("Failed to connect to profile server.");
@@ -371,6 +383,12 @@ export default function CandidateDashboard() {
         })
       });
 
+      await fetch("/api/candidate/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_name: teamNameInput.trim() })
+      });
+
       setTimeout(() => {
         setIsUpdating(false);
         setUpdateSuccess(true);
@@ -379,13 +397,35 @@ export default function CandidateDashboard() {
             ...candidate,
             phone: phoneVal,
             college: collegeVal,
-            department: deptVal
+            department: deptVal,
+            team_name: teamNameInput.trim()
           });
         }
       }, 1000);
     } catch {
       setUpdateError("Failed to update profile details.");
       setIsUpdating(false);
+    }
+  };
+
+  const handleSaveTeamName = async () => {
+    setSavingTeamName(true);
+    try {
+      await fetch("/api/candidate/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_name: teamNameInput.trim() })
+      });
+      if (candidate) {
+        setCandidate({ ...candidate, team_name: teamNameInput.trim() });
+      }
+      setShowTeamNamePrompt(false);
+      localStorage.setItem("team_name_prompted", "true");
+    } catch {
+      // Ignore error for non-critical prompt
+      setShowTeamNamePrompt(false);
+    } finally {
+      setSavingTeamName(false);
     }
   };
 
@@ -517,10 +557,10 @@ export default function CandidateDashboard() {
         <div className="p-6 border-t border-zinc-800 space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-[#E61E32] uppercase rounded-full">
-              {candidate?.full_name.substring(0, 2).toUpperCase()}
+              {(candidate?.team_name || candidate?.full_name || "C").substring(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-zinc-200 truncate leading-none mb-1">{candidate?.full_name}</span>
+              <span className="text-xs font-bold text-zinc-200 truncate leading-none mb-1">{candidate?.team_name || candidate?.full_name}</span>
               <span className="text-[10px] text-zinc-500 truncate">{candidate?.email}</span>
             </div>
           </div>
@@ -557,7 +597,7 @@ export default function CandidateDashboard() {
                 <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-radial-gradient from-red-650/10 to-transparent pointer-events-none" />
                 <div className="space-y-2 relative z-10 max-w-2xl">
                   <span className="text-[10px] font-semibold text-white tracking-wider bg-white/20 px-2 py-0.5 border border-white/10 rounded-md">Proctored Node Active</span>
-                  <h2 className="text-2xl font-semibold tracking-tight mt-1 text-white">Welcome Back, {candidate?.full_name}!</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight mt-1 text-white">Welcome Back, {candidate?.team_name || candidate?.full_name}!</h2>
                   <p className="text-xs text-white/80 font-normal leading-relaxed">
                     Your playground console is fully configured. Enter a sprint join code to enter the waiting room or view active evaluation sessions.
                   </p>
@@ -1278,6 +1318,19 @@ export default function CandidateDashboard() {
                   </div>
                 </div>
 
+                {/* Team Name */}
+                <div>
+                  <label htmlFor="edit-team" className="block text-xs font-semibold text-zinc-750 mb-1.5">Team Name / Nickname</label>
+                  <input
+                    id="edit-team"
+                    type="text"
+                    value={teamNameInput}
+                    onChange={(e) => setTeamNameInput(e.target.value)}
+                    placeholder="Enter your team name (Optional)"
+                    className="text-xs w-full py-2.5 px-3.5 border border-zinc-300 rounded-lg bg-white text-zinc-900 focus:outline-none focus:border-[#E61E32] transition-colors"
+                  />
+                </div>
+
                 {/* Submit actions */}
                 <div className="pt-4 border-t border-zinc-150 flex justify-end gap-3">
                   <button
@@ -1303,6 +1356,49 @@ export default function CandidateDashboard() {
         </div>
 
       </main>
+
+      {/* Team Name Prompt Modal */}
+      {showTeamNamePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                <User className="w-6 h-6 text-[#E61E32]" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900">Set Your Team Name</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                You can choose to represent a team or use a nickname during the hackathon. You can also skip this and set it later in your profile.
+              </p>
+              <input
+                type="text"
+                value={teamNameInput}
+                onChange={(e) => setTeamNameInput(e.target.value)}
+                placeholder="e.g. Code Ninjas"
+                className="w-full text-sm py-3 px-4 border border-zinc-300 rounded-xl bg-white text-zinc-900 focus:outline-none focus:border-[#E61E32] focus:ring-1 focus:ring-red-100 transition-all text-center"
+                autoFocus
+              />
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  onClick={handleSaveTeamName}
+                  disabled={savingTeamName || !teamNameInput.trim()}
+                  className="w-full px-5 py-3 bg-[#E61E32] hover:bg-[#d01729] disabled:bg-red-300 text-white font-bold text-sm rounded-xl transition-colors cursor-pointer border-none shadow-sm"
+                >
+                  {savingTeamName ? "Saving..." : "Set Team Name"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTeamNamePrompt(false);
+                    localStorage.setItem("team_name_prompted", "true");
+                  }}
+                  className="w-full px-5 py-3 bg-white hover:bg-zinc-50 text-zinc-500 font-bold text-sm rounded-xl transition-colors cursor-pointer border border-zinc-200"
+                >
+                  Skip for Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     // Fetch candidate details
     const { data: candidate, error: candidateError } = await supabase
       .from("candidates")
-      .select("id, full_name, email, phone, college, department, created_at")
+      .select("id, full_name, email, phone, college, department, team_name, created_at")
       .eq("email", candidateEmail.trim().toLowerCase())
       .maybeSingle();
 
@@ -128,5 +128,34 @@ export async function GET(req: NextRequest) {
       { success: false, error: err.message || "Internal server error" },
       { status: 500 }
     );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  const supabase = getSupabaseAdminClient();
+  try {
+    const emailCookie = req.cookies.get("candidate_session_token")?.value;
+    const emailHeader = req.headers.get("x-candidate-email");
+    const candidateEmail = emailCookie || emailHeader;
+
+    if (!candidateEmail) {
+      return NextResponse.json({ success: false, error: "Unauthorized." }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { team_name } = body;
+
+    const { error: updateError } = await supabase
+      .from("candidates")
+      .update({ team_name })
+      .eq("email", candidateEmail.trim().toLowerCase());
+
+    if (updateError) {
+      return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message || "Internal server error" }, { status: 500 });
   }
 }
