@@ -108,6 +108,11 @@ export async function PUT(req: NextRequest) {
     if (body.answers) {
       dataToUpdate.answers = typeof body.answers === "string" ? body.answers : JSON.stringify(body.answers);
     }
+    
+    // If results is provided directly
+    if (body.results) {
+      dataToUpdate.results = typeof body.results === "string" ? body.results : JSON.stringify(body.results);
+    }
 
     const updated = await prisma.sprintParticipant.update({
       where: { id },

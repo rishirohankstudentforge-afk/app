@@ -143,6 +143,14 @@ function SprintActiveContent() {
                 }
               } catch(e) {}
             }
+            if (p.results) {
+              try {
+                const savedResults = JSON.parse(p.results);
+                if (Object.keys(savedResults).length > 0) {
+                  setCompileResults(savedResults);
+                }
+              } catch(e) {}
+            }
             if (p.isLocked) {
               setIsLocked(true);
               setWarningReason("Exam Terminated. Awaiting Organizer action.");
@@ -290,11 +298,19 @@ function SprintActiveContent() {
         }
       };
 
+      const handleWindowBlur = () => {
+        if (!isLocked && !isSubmitted && isFullscreen) {
+          issueWarning("Candidate switched window focus (Alt+Tab/App Switch).");
+        }
+      };
+
       document.addEventListener("fullscreenchange", handleFsChange);
       document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("blur", handleWindowBlur);
       return () => {
         document.removeEventListener("fullscreenchange", handleFsChange);
         document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("blur", handleWindowBlur);
         if (fsTimeoutRef.current) clearTimeout(fsTimeoutRef.current);
       };
     }
@@ -366,7 +382,8 @@ function SprintActiveContent() {
         body: JSON.stringify({ 
           id: participantId, 
           score: finalScore,
-          answers: JSON.stringify(currentDrafts)
+          answers: JSON.stringify(currentDrafts),
+          results: JSON.stringify(currentResults)
         })
       });
     } catch(e) {}

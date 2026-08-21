@@ -145,6 +145,7 @@ model SprintParticipant {
   joinedAt       DateTime @default(now())
   score          Int      @default(0)
   answers        String?  @db.Text // Saved candidate answers (JSON)
+  results        String?  @db.Text // Saved execution results (JSON)
   warningsCount  Int      @default(0)
   isLocked       Boolean  @default(false)
   isSubmitted    Boolean  @default(false)
