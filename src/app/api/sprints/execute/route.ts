@@ -42,9 +42,7 @@ export async function POST(req: Request) {
           version: pistonLang === "typescript" ? "*" : version,
           files: [{ content: wrappedCode }],
           compile_timeout: 10000,
-          run_timeout: 3000,
-          compile_memory_limit: -1,
-          run_memory_limit: -1
+          run_timeout: 3000
         })
       });
 
@@ -67,7 +65,15 @@ export async function POST(req: Request) {
       }
 
       try {
-        return NextResponse.json({ success: true, data: JSON.parse(out) });
+        const parsed = JSON.parse(out);
+        const mapped = Array.isArray(parsed) ? parsed.map((r: any) => ({
+          caseIndex: r.c,
+          status: r.s === 1 ? "pass" : "fail",
+          expected: r.e,
+          actual: r.a,
+          error: r.err
+        })) : parsed;
+        return NextResponse.json({ success: true, data: mapped });
       } catch (e) {
         return NextResponse.json({
           success: true,
@@ -90,9 +96,7 @@ export async function POST(req: Request) {
             files: [{ content: wrappedCode }],
             stdin: tc.input,
             compile_timeout: 10000,
-            run_timeout: 3000,
-            compile_memory_limit: -1,
-            run_memory_limit: -1
+            run_timeout: 3000
           })
         });
 

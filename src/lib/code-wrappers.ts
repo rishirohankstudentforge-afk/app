@@ -41,16 +41,16 @@ def _run_tests():
                 passed = (actual_json == expected_str)
             
             results.append({
-                "caseIndex": tc['caseIndex'],
-                "status": "pass" if passed else "fail",
-                "expected": expected_str,
-                "actual": actual_json
+                "c": tc['caseIndex'],
+                "s": 1 if passed else 0,
+                "e": expected_str,
+                "a": actual_json
             })
         except Exception as e:
             results.append({
-                "caseIndex": tc['caseIndex'],
-                "status": "fail",
-                "error": str(e)
+                "c": tc['caseIndex'],
+                "s": 0,
+                "err": str(e)
             })
             
     print(json.dumps(results))
@@ -84,16 +84,16 @@ for (const tc of testCases) {
         }
         
         results.push({
-            caseIndex: tc.caseIndex,
-            status: passed ? "pass" : "fail",
-            expected: tc.expectedOutput,
-            actual: actualJson
+            c: tc.caseIndex,
+            s: passed ? 1 : 0,
+            e: tc.expectedOutput,
+            a: actualJson
         });
     } catch(err) {
         results.push({
-            caseIndex: tc.caseIndex,
-            status: "fail",
-            error: err.toString()
+            c: tc.caseIndex,
+            s: 0,
+            err: err.toString()
         });
     }
 }
@@ -147,18 +147,18 @@ def _run_tests():
                 passed = (actual_json == expected_str)
             
             results.append({
-                "caseIndex": tc['caseIndex'],
-                "status": "pass" if passed else "fail",
-                "expected": expected_str,
-                "actual": actual_json
+                "c": tc['caseIndex'],
+                "s": 1 if passed else 0,
+                "e": expected_str,
+                "a": actual_json
             })
             
             conn.close()
         except Exception as e:
             results.append({
-                "caseIndex": tc['caseIndex'],
-                "status": "fail",
-                "error": str(e)
+                "c": tc['caseIndex'],
+                "s": 0,
+                "err": str(e)
             })
             
     print(json.dumps(results))
