@@ -645,7 +645,7 @@ function SprintActiveContent() {
             </div>
 
             {/* Right Editor */}
-            <div className="flex-1 flex flex-col bg-white">
+            <div className="flex-1 flex flex-col bg-white min-w-0">
               <div className="flex items-center justify-between px-4 py-3 bg-red-50 border-b border-red-200">
                 <div className="flex items-center gap-3">
                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Language</div>
