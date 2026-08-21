@@ -102,24 +102,10 @@ console.log(JSON.stringify(results));
 `;
   }
 
-  if (language === "java") {
-    return `
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("[{\\"caseIndex\\": 1, \\"status\\": \\"info\\", \\"error\\": \\"Java execution via solution() wrapper is not yet supported. Please use Python or JS.\\"}]");
-    }
-}
-`;
-  }
-
-  if (language === "cpp") {
-    return `
-#include <iostream>
-int main() {
-    std::cout << "[{\\"caseIndex\\": 1, \\"status\\": \\"info\\", \\"error\\": \\"C++ execution via solution() wrapper is not yet supported. Please use Python or JS.\\"}]" << std::endl;
-    return 0;
-}
-`;
+  if (language === "java" || language === "cpp" || language === "c") {
+    // For Java, C, and C++, we use Standard I/O (CP style).
+    // No wrapper is added; the user writes the entire program including main().
+    return userCode;
   }
 
   if (language === "sql") {

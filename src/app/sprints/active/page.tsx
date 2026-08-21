@@ -33,8 +33,9 @@ const generateArgsString = (testCases: any[]) => {
 const getTemplate = (lang: string, argsStr: string) => {
   if (lang === "javascript") return `function solution(${argsStr}) {\n  // Write your code here\n  \n}`;
   if (lang === "python") return `def solution(${argsStr}):\n    # Write your code here\n    pass\n`;
-  if (lang === "java") return `public class Solution {\n    public static Object solution(${argsStr}) {\n        // Write your code here\n        return null;\n    }\n}`;
-  if (lang === "cpp") return `#include <bits/stdc++.h>\nusing namespace std;\n\nauto solution(${argsStr}) {\n    // Write your code here\n}`;
+  if (lang === "java") return `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        // Read input from scanner and print output\n        \n    }\n}`;
+  if (lang === "cpp") return `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    // Read input from cin and print output to cout\n    \n    return 0;\n}`;
+  if (lang === "c") return `#include <stdio.h>\n\nint main() {\n    // Read input from stdin and print output to stdout\n    \n    return 0;\n}`;
   if (lang === "typescript") return `function solution(${argsStr}): any {\n  // Write your code here\n  \n}`;
   if (lang === "sql") return `-- Write your SQL query here\nSELECT * FROM table_name;\n`;
   if (lang === "html") return `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    /* CSS here */\n  </style>\n</head>\n<body>\n  <!-- HTML here -->\n\n  <script>\n    // JS here\n  </script>\n</body>\n</html>`;

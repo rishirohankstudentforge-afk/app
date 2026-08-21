@@ -132,7 +132,7 @@ export default function SprintListClient({ sprints }: { sprints: any[] }) {
                 <div className="p-6">
                   <h3 className="text-lg font-bold text-zinc-900 mb-1">Enter Lobby Code</h3>
                   <p className="text-sm text-zinc-500 mb-6">
-                    Please provide the 6-digit access code for <strong className="text-zinc-800 font-medium">{sprint.title}</strong>.
+                    Please provide the access code for <strong className="text-zinc-800 font-medium">{sprint.title}</strong>.
                   </p>
 
                   <div className="space-y-4">
@@ -155,7 +155,7 @@ export default function SprintListClient({ sprints }: { sprints: any[] }) {
                             : "border-zinc-200 focus:border-[#E61E32] focus:ring-red-100"
                         }`}
                         autoFocus
-                        maxLength={6}
+                        maxLength={12}
                       />
                       {codeError && (
                         <p className="text-xs font-medium text-red-500 mt-2 ml-1 animate-in slide-in-from-top-1">
