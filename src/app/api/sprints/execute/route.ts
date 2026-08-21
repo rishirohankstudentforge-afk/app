@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     const version = VERSIONS[language] || "*";
     let pistonLang = language;
     if (language === "sql") pistonLang = "sqlite3";
+    if (language === "javascript") pistonLang = "typescript";
 
     // For Python, JS, SQL, TS we run the wrapper once
     if (["python", "javascript", "typescript", "sql"].includes(language)) {
@@ -36,10 +37,10 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           language: pistonLang,
-          version,
+          version: pistonLang === "typescript" ? "*" : version,
           files: [{ content: wrappedCode }],
           compile_timeout: 10000,
-          run_timeout: 5000,
+          run_timeout: 3000,
           compile_memory_limit: -1,
           run_memory_limit: -1
         })
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
             files: [{ content: wrappedCode }],
             stdin: tc.input,
             compile_timeout: 10000,
-            run_timeout: 5000,
+            run_timeout: 3000,
             compile_memory_limit: -1,
             run_memory_limit: -1
           })

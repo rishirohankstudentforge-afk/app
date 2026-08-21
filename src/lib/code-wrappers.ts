@@ -61,7 +61,7 @@ if __name__ == '__main__':
   }
 
   if (language === "javascript" || language === "typescript") {
-    return `
+    return `// @ts-nocheck
 // --- USER CODE START ---
 ${userCode}
 // --- USER CODE END ---
