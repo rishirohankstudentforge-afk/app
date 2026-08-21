@@ -76,25 +76,8 @@ function SprintActiveContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showProctorToast, setShowProctorToast] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const modelsLoaded = useRef(false);
-  const faceApiRef = useRef<any>(null);
   const fsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        const faceapi = await import("@vladmandic/face-api");
-        faceApiRef.current = faceapi;
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-        modelsLoaded.current = true;
-      } catch (e) {
-        console.error("FaceAPI load error:", e);
-      }
-    };
-    loadModels();
-  }, []);
 
   const draftKey = (qIdx: number, langId: string) => `${qIdx}_${langId}`;
 
@@ -295,83 +278,7 @@ function SprintActiveContent() {
     }
   }, [isLocked, isSubmitted, sprint, participantId]);
 
-  useEffect(() => {
-    if (isLocked || isSubmitted || !sprint || !participantId) return;
-    let stream: MediaStream | null = null;
-    let snapInterval: any;
-
-    // Anti-cheat Listeners
-    const handleContextMenu = (e: Event) => { e.preventDefault(); issueWarning("Right-click is disabled during the exam."); };
-    const handleCopyPaste = (e: Event) => { e.preventDefault(); issueWarning("Copy/Paste is disabled during the exam."); };
-    const handleVisibility = () => { if (document.hidden) issueWarning("Tab switch detected."); };
-    const handleBlur = () => {
-      if (document.activeElement?.tagName !== 'IFRAME') {
-        issueWarning("Window unfocused. Please stay in the exam window.");
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && ["c", "v", "x", "p"].includes(e.key.toLowerCase())) {
-        e.preventDefault();
-        issueWarning("Keyboard shortcuts are disabled.");
-      }
-    };
-
-    const startProctor = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        
-        // Setup listeners
-        document.addEventListener("contextmenu", handleContextMenu);
-        document.addEventListener("copy", handleCopyPaste);
-        document.addEventListener("paste", handleCopyPaste);
-        document.addEventListener("visibilitychange", handleVisibility);
-        window.addEventListener("blur", handleBlur);
-        document.addEventListener("keydown", handleKeyDown);
-        
-        // Canvas for snapshots
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        
-        snapInterval = setInterval(async () => {
-          if (videoRef.current && videoRef.current.videoWidth > 0 && ctx && participantId) {
-            canvas.width = 320;
-            canvas.height = 240;
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            const b64 = canvas.toDataURL("image/jpeg", 0.5);
-            
-            // Sync to backend silently directly with PUT since we have participantId
-            fetch(`/api/sprints/participants`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: participantId, latestSnapshot: b64 })
-            });
-            
-            if (modelsLoaded.current && faceApiRef.current && videoRef.current) {
-              try {
-                const faceapi = faceApiRef.current;
-                const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions());
-                if (detections.length === 0) {
-                  issueWarning("Face not detected in camera frame.");
-                }
-              } catch(err) {}
-            }
-          }
-        }, 5000);
-      } catch(e) {}
-    };
-    startProctor();
-    return () => {
-      stream?.getTracks().forEach(t => t.stop());
-      clearInterval(snapInterval);
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("copy", handleCopyPaste);
-      document.removeEventListener("paste", handleCopyPaste);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isLocked, isSubmitted, sprint, participantId]);
+  // Proctoring and anti-cheat removed as requested
 
   // Auto-select language based on question title
   useEffect(() => {
@@ -657,12 +564,7 @@ function SprintActiveContent() {
                   </>
                 )}
               </div>
-              <div className="absolute bottom-4 right-4 w-32 h-24 rounded-lg overflow-hidden border border-zinc-700 shadow-2xl z-50 bg-white">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white flex items-center gap-1 font-bold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> REC
-                </div>
-              </div>
+
             </div>
 
             {/* Right Editor */}
