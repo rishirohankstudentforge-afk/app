@@ -199,7 +199,7 @@ function SprintActiveContent() {
           } else {
             setIsPaused(data.data.isPaused || false);
             // Sync updated sprint data in case endDate was extended after pause
-            setSprint(prev => prev ? { ...prev, endDate: data.data.endDate } : null);
+            setSprint((prev: any) => prev ? { ...prev, endDate: data.data.endDate } : null);
           }
         }
       } catch (e) {}
