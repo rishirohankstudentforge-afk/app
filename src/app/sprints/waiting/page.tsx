@@ -28,7 +28,7 @@ function SprintWaitingContent() {
     setFloatingEmojis(prev => [...prev, { id, emoji, left }]);
     setTimeout(() => {
       setFloatingEmojis(prev => prev.filter(e => e.id !== id));
-    }, 2000); // 2 second animation
+    }, 2500); // 2.5 second animation
   };
 
   // 1. Fetch Sprint Details initially
@@ -211,12 +211,12 @@ function SprintWaitingContent() {
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes floatUp {
           0% { transform: translateY(0) scale(0.5); opacity: 0; }
-          20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+          10% { transform: translateY(-40px) scale(1.2); opacity: 1; }
           80% { opacity: 1; }
-          100% { transform: translateY(-80px) scale(1); opacity: 0; }
+          100% { transform: translateY(-600px) scale(1); opacity: 0; }
         }
         .animate-float-up {
-          animation: floatUp 2s ease-out forwards;
+          animation: floatUp 2.5s ease-out forwards;
         }
         
         @keyframes clock-tick {
@@ -231,7 +231,7 @@ function SprintWaitingContent() {
       `}} />
 
       {/* Top Header */}
-      <header className="bg-white py-5 px-8 md:px-12 flex items-center justify-between shrink-0 border-b border-zinc-100 relative z-20">
+      <header className="bg-white py-4 px-8 md:px-12 flex items-center justify-between shrink-0 border-b border-zinc-100 relative z-20">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 relative">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E61E32] opacity-75"></span>
@@ -247,29 +247,29 @@ function SprintWaitingContent() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-[1300px] mx-auto p-6 md:p-8 flex flex-col lg:flex-row gap-10 relative z-10 items-center justify-center overflow-hidden">
+      <main className="flex-1 w-full max-w-[1300px] mx-auto p-4 md:p-6 flex flex-col lg:flex-row gap-6 relative z-10 lg:items-stretch justify-center min-h-0">
         
         {/* Left Section */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full py-2 lg:py-4">
           
           {/* Animated Graphic */}
-          <div className="relative w-[220px] h-[220px] mb-12 flex items-center justify-center">
+          <div className="relative w-[150px] h-[150px] mb-4 flex items-center justify-center mt-2">
             {/* Dashed outer ring */}
             <div className="absolute inset-0 rounded-full border-[2.5px] border-dashed border-red-200 animate-[spin_40s_linear_infinite]" style={{ animationPlayState: 'running' }}></div>
             
             {/* Clock icon top right */}
-            <div className="absolute top-2 right-2 bg-white rounded-full p-2.5 border-[2.5px] border-[#E61E32] shadow-sm z-10">
-              <Clock className="w-5 h-5 text-[#E61E32] stroke-[2]" style={{ animation: 'clock-tick 8s linear infinite' }} />
+            <div className="absolute top-1 right-1 bg-white rounded-full p-2 border-[2.5px] border-[#E61E32] shadow-sm z-10">
+              <Clock className="w-4 h-4 text-[#E61E32] stroke-[2]" style={{ animation: 'clock-tick 8s linear infinite' }} />
             </div>
 
             {/* People Icon Center */}
             <div className="text-[#E61E32]" style={{ animation: 'bounce-people 3s ease-in-out infinite' }}>
-              <Users className="w-24 h-24 stroke-[1.5]" />
+              <Users className="w-16 h-16 stroke-[1.5]" />
             </div>
           </div>
 
-          <div className="text-center space-y-3 max-w-lg mb-8">
-            <h1 className="text-4xl md:text-[42px] font-light text-zinc-800 tracking-tight leading-tight">
+          <div className="text-center space-y-2 max-w-lg mb-4">
+            <h1 className="text-3xl md:text-4xl font-light text-zinc-800 tracking-tight leading-tight">
               Waiting for Organizer <br/>
               <span className="text-[#E61E32] font-light">to Start the Sprint</span>
             </h1>
@@ -289,7 +289,7 @@ function SprintWaitingContent() {
           </div>
 
           {/* Warning Box */}
-          <div className="bg-white border border-zinc-100 rounded-xl px-6 py-4 flex items-center gap-4 w-full max-w-md shadow-sm mb-8">
+          <div className="bg-white border border-zinc-100 rounded-xl px-6 py-3 flex items-center gap-4 w-full max-w-md shadow-sm mb-6">
             <div className="w-6 h-6 rounded-full border-[1.5px] border-[#E61E32] flex items-center justify-center shrink-0">
               <Info className="w-3.5 h-3.5 text-[#E61E32]" />
             </div>
@@ -343,41 +343,41 @@ function SprintWaitingContent() {
         </div>
 
         {/* Right Section */}
-        <div className="w-full lg:w-[420px] flex flex-col gap-4 shrink-0 pt-4 lg:pt-0 h-full overflow-hidden">
+        <div className="w-full lg:w-[420px] flex flex-col gap-4 shrink-0 pt-0 lg:py-2 min-h-0">
           
           {/* Sprint Details */}
-          <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center gap-3 mb-6">
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-3 mb-4">
               <List className="w-[18px] h-[18px] text-zinc-700 stroke-[2]" />
               <h3 className="text-[13px] font-semibold text-zinc-700 tracking-wide">SPRINT DETAILS</h3>
             </div>
             
             <div className="space-y-0 divide-y divide-zinc-100">
-              <div className="py-4 flex items-start gap-4">
-                <Clock className="w-5 h-5 text-zinc-700 stroke-[1.5] mt-0.5" />
+              <div className="py-2.5 flex items-start gap-4">
+                <Clock className="w-4 h-4 text-zinc-700 stroke-[1.5] mt-0.5" />
                 <div>
-                  <p className="text-[11px] text-zinc-500 font-semibold mb-1 uppercase tracking-wider">TIME LIMIT</p>
-                  <p className="text-[14px] font-medium text-zinc-900">
+                  <p className="text-[10px] text-zinc-500 font-semibold mb-0.5 uppercase tracking-wider">TIME LIMIT</p>
+                  <p className="text-[13px] font-medium text-zinc-900">
                     {sprint?.endDate ? Math.ceil((new Date(sprint.endDate).getTime() - new Date(sprint.startDate).getTime()) / 60000) : 60} Minutes
                   </p>
                 </div>
               </div>
               
-              <div className="py-4 flex items-start gap-4">
-                <Globe className="w-5 h-5 text-zinc-700 stroke-[1.5] mt-0.5" />
+              <div className="py-2.5 flex items-start gap-4">
+                <Globe className="w-4 h-4 text-zinc-700 stroke-[1.5] mt-0.5" />
                 <div>
-                  <p className="text-[11px] text-zinc-500 font-semibold mb-1 uppercase tracking-wider">ENVIRONMENT</p>
-                  <p className="text-[14px] font-medium text-zinc-900">
+                  <p className="text-[10px] text-zinc-500 font-semibold mb-0.5 uppercase tracking-wider">ENVIRONMENT</p>
+                  <p className="text-[13px] font-medium text-zinc-900">
                     {sprint?.location || "Online"} ({sprint?.type || "Sprint"})
                   </p>
                 </div>
               </div>
 
-              <div className="py-4 flex items-start gap-4">
-                <Flag className="w-5 h-5 text-zinc-700 stroke-[1.5] mt-0.5" />
+              <div className="py-2.5 flex items-start gap-4">
+                <Flag className="w-4 h-4 text-zinc-700 stroke-[1.5] mt-0.5" />
                 <div>
-                  <p className="text-[11px] text-zinc-500 font-semibold mb-1 uppercase tracking-wider">START TYPE</p>
-                  <p className="text-[14px] font-medium text-zinc-900">Strict Start</p>
+                  <p className="text-[10px] text-zinc-500 font-semibold mb-0.5 uppercase tracking-wider">START TYPE</p>
+                  <p className="text-[13px] font-medium text-zinc-900">Strict Start</p>
                 </div>
               </div>
             </div>
@@ -430,7 +430,7 @@ function SprintWaitingContent() {
           </div>
 
           {/* Reaction Bar */}
-          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex items-center justify-between relative mt-1">
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex items-center justify-around relative mt-1">
              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 w-full h-0 z-50 flex justify-center mb-2">
                {floatingEmojis.map((e) => (
                  <div
@@ -467,9 +467,9 @@ function SprintWaitingContent() {
       </main>
 
       {/* Bottom Footer */}
-      <footer className="py-6 flex items-center justify-center gap-2 text-zinc-600 bg-[#FBFBFB] relative z-20 pb-8">
-        <ShieldCheck className="w-[18px] h-[18px]" />
-        <span className="text-[13px] font-medium">Secure. Verified. Ready when you are.</span>
+      <footer className="py-4 flex items-center justify-center gap-2 text-zinc-600 bg-[#FBFBFB] relative z-20">
+        <ShieldCheck className="w-[16px] h-[16px]" />
+        <span className="text-[12px] font-medium">Secure. Verified. Ready when you are.</span>
       </footer>
 
     </div>

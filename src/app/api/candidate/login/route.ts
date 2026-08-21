@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24, // 24 hours
     });
+    // Add client-readable auth cookies like signup does
+    res.cookies.set("candidate_logged_in", "true", { path: "/", maxAge: 86400 * 7 });
+    res.cookies.set("candidate_email", cleanEmail, { path: "/", maxAge: 86400 * 7 });
 
     return res;
   } catch (err: any) {
