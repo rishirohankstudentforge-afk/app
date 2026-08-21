@@ -39,6 +39,16 @@ import {
   TECHNICAL_ANSWER_KEY,
   gradeTechnicalFull
 } from "@/app/exam-session/technicalAnswerKey";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "@/app/exam-session/businessAnalysisQuestions";
+import {
+  BUSINESS_ANALYSIS_ANSWER_KEY,
+  gradeBusinessAnalysisFull
+} from "@/app/exam-session/businessAnalysisAnswerKey";
+import { SALES_MARKETING_QUESTIONS } from "@/app/exam-session/salesMarketingQuestions";
+import {
+  SALES_MARKETING_ANSWER_KEY,
+  gradeSalesMarketingFull
+} from "@/app/exam-session/salesMarketingAnswerKey";
 
 
 // Seedable random number generator for deterministic shuffling
@@ -489,12 +499,16 @@ export default function ResultsPage() {
                 const candidateExam = selectedExam || exams.find((e) => e.id === searchedCandidate.exam_id);
                 const examName = candidateExam?.name.toLowerCase() || "";
                 const isTechnical = examName.includes("technical");
+                const isBusinessAnalysis = examName.includes("business") || examName.includes("bussiness");
+                const isSalesMarketing = examName.includes("sales");
                 const isUIUX = examName.includes("ui") || examName.includes("ux");
                 const isAnalytics = examName.includes("analytics");
-                const isMarketing = examName.includes("marketing");
+                const isMarketing = examName.includes("marketing") && !isSalesMarketing;
                 const isTraining01 = examName.includes("redlix training exam 01");
                 const isPhase02 = examName.includes("redlix phase - 02") || examName.includes("final phase");
                 const techGrade = (isTechnical && searchedCandidate.answers) ? gradeTechnicalFull(searchedCandidate.answers) : null;
+                const baGrade = (isBusinessAnalysis && searchedCandidate.answers) ? gradeBusinessAnalysisFull(searchedCandidate.answers) : null;
+                const smGrade = (isSalesMarketing && searchedCandidate.answers) ? gradeSalesMarketingFull(searchedCandidate.answers) : null;
                 const uiuxGrade = (isUIUX && searchedCandidate.answers) ? gradeUIUXFull(searchedCandidate.answers) : null;
                 const analyticsGrade = (isAnalytics && searchedCandidate.answers) ? gradeAnalyticsFull(searchedCandidate.answers) : null;
                 const marketingGrade = (isMarketing && searchedCandidate.answers) ? gradeMarketingFull(searchedCandidate.answers) : null;
@@ -505,6 +519,10 @@ export default function ResultsPage() {
                 let isPass = false;
                 if (isTechnical) {
                   isPass = techGrade ? techGrade.isPass : false;
+                } else if (isBusinessAnalysis) {
+                  isPass = baGrade ? baGrade.isPass : false;
+                } else if (isSalesMarketing) {
+                  isPass = smGrade ? smGrade.isPass : false;
                 } else if (isUIUX) {
                   isPass = uiuxGrade ? uiuxGrade.isPass : false;
                 } else if (isAnalytics) {
@@ -602,6 +620,30 @@ export default function ResultsPage() {
                               </td>
                               <td className="px-4 py-3 text-center font-mono font-bold text-blue-700">
                                 {searchedCandidate.attempted && techGrade ? `${techGrade.secBMarks} / 20 pts` : "0 / 20 pts"}
+                              </td>
+                            </tr>
+                          </tbody>
+                        ) : isBusinessAnalysis ? (
+                          <tbody className="divide-y divide-zinc-200">
+                            <tr className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 py-3 border-r border-zinc-200 font-semibold text-zinc-700">Section A: Business Analysis MCQs (50 questions)</td>
+                              <td className="px-4 py-3 border-r border-zinc-200 text-center font-mono font-medium text-zinc-600">
+                                {searchedCandidate.attempted && baGrade ? `${baGrade.totalCorrect} / 50 correct (${baGrade.totalAttempted} / 50 attempted)` : "0 / 50"}
+                              </td>
+                              <td className="px-4 py-3 text-center font-mono font-bold text-green-700">
+                                {searchedCandidate.attempted && baGrade ? `${baGrade.totalMarks} / 100 pts (${baGrade.percentage}%)` : "0 / 100 pts"}
+                              </td>
+                            </tr>
+                          </tbody>
+                        ) : isSalesMarketing ? (
+                          <tbody className="divide-y divide-zinc-200">
+                            <tr className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 py-3 border-r border-zinc-200 font-semibold text-zinc-700">Section A: Sales and Marketing MCQs (50 questions)</td>
+                              <td className="px-4 py-3 border-r border-zinc-200 text-center font-mono font-medium text-zinc-600">
+                                {searchedCandidate.attempted && smGrade ? `${smGrade.totalCorrect} / 50 correct (${smGrade.totalAttempted} / 50 attempted)` : "0 / 50"}
+                              </td>
+                              <td className="px-4 py-3 text-center font-mono font-bold text-green-700">
+                                {searchedCandidate.attempted && smGrade ? `${smGrade.totalMarks} / 100 pts (${smGrade.percentage}%)` : "0 / 100 pts"}
                               </td>
                             </tr>
                           </tbody>
@@ -747,13 +789,165 @@ export default function ResultsPage() {
             ) : answerData ? (
               (() => {
                 const isTechnical = selectedExam?.name.toLowerCase().includes("technical");
+                const isBusinessAnalysis = selectedExam?.name.toLowerCase().includes("business") || selectedExam?.name.toLowerCase().includes("bussiness");
+                const isSalesMarketing = selectedExam?.name.toLowerCase().includes("sales");
                 const isUIUX = selectedExam?.name.toLowerCase().includes("ui") || selectedExam?.name.toLowerCase().includes("ux");
                 const isAnalytics = selectedExam?.name.toLowerCase().includes("analytics");
-                const isMarketing = selectedExam?.name.toLowerCase().includes("marketing");
+                const isMarketing = selectedExam?.name.toLowerCase().includes("marketing") && !isSalesMarketing;
                 const isTraining01 = selectedExam?.name.toLowerCase().includes("redlix training exam 01");
                 const isPhase02 = selectedExam?.name.toLowerCase().includes("redlix phase - 02") || selectedExam?.name.toLowerCase().includes("final phase");
 
-                if (isTechnical) {
+                if (isBusinessAnalysis) {
+                  const baGrade = gradeBusinessAnalysisFull(answerData.answers || {});
+                  return (
+                    <>
+                      <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-xs space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-md">
+                              {selectedExam?.company_name || "STUDENT FORGE"}
+                            </span>
+                            <h2 className="text-xl font-bold text-zinc-900">{answerData.candidate_name}</h2>
+                            <p className="text-xs text-zinc-500 font-mono">
+                              HT: <strong className="text-zinc-800">{answerData.hall_ticket_number}</strong> | Reg No: <strong className="text-zinc-800">{answerData.registration_number}</strong>
+                            </p>
+                          </div>
+                          <div className={`px-4 py-2 rounded-xl text-center border font-bold text-xs ${baGrade.isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                            <p className="text-lg font-black">{baGrade.totalMarks} / 100</p>
+                            <p className="text-[10px] uppercase tracking-wider">{baGrade.isPass ? "PASSED (≥ 40%)" : "FAILED (< 40%)"}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase">Questions Attempted</p>
+                            <p className="text-sm font-bold text-zinc-900 mt-1">{baGrade.totalAttempted} / 50</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase">Correct Answers</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-1">{baGrade.totalCorrect}</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-red-600 uppercase">Wrong Answers</p>
+                            <p className="text-sm font-bold text-red-600 mt-1">{baGrade.totalAttempted - baGrade.totalCorrect}</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase">Percentage</p>
+                            <p className="text-sm font-bold text-zinc-900 mt-1">{baGrade.percentage}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs">
+                        <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/80 flex items-center justify-between">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Business Analysis Wing MCQs Evaluation (50 Questions)</h3>
+                          <span className="text-[10px] font-semibold text-zinc-500">2 Marks Each · No Negative Marking</span>
+                        </div>
+
+                        <div className="divide-y divide-zinc-100 p-6 space-y-4">
+                          {baGrade.questionDetails.map((q) => (
+                            <div key={q.id} className="p-4 bg-zinc-50/60 border border-zinc-200/80 rounded-xl space-y-3">
+                              <div className="flex justify-between items-start gap-3">
+                                <p className="text-xs font-bold text-zinc-900">
+                                  <span className="text-[#E61E32]">Q{q.number}.</span> {q.questionText}
+                                </p>
+                                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${q.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                                  {q.isCorrect ? "+2 Marks" : "0 Marks"}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <div className={`p-2.5 rounded-lg border font-semibold ${q.isCorrect ? "bg-emerald-50 text-emerald-800 border-emerald-200" : q.selectedOption ? "bg-red-50 text-red-800 border-red-200" : "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                                  <span className="text-[10px] text-zinc-400 uppercase block font-bold">Candidate Response</span>
+                                  {q.selectedOption ? `Option ${q.selectedOption}` : "Not Attempted"}
+                                </div>
+                                <div className="p-2.5 rounded-lg border bg-emerald-50/60 text-emerald-800 border-emerald-200 font-semibold">
+                                  <span className="text-[10px] text-emerald-600 uppercase block font-bold">Correct Key</span>
+                                  Option {q.correctOption}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                } else if (isSalesMarketing) {
+                  const smGrade = gradeSalesMarketingFull(answerData.answers || {});
+                  return (
+                    <>
+                      <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-xs space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-md">
+                              {selectedExam?.company_name || "STUDENT FORGE"}
+                            </span>
+                            <h2 className="text-xl font-bold text-zinc-900">{answerData.candidate_name}</h2>
+                            <p className="text-xs text-zinc-500 font-mono">
+                              HT: <strong className="text-zinc-800">{answerData.hall_ticket_number}</strong> | Reg No: <strong className="text-zinc-800">{answerData.registration_number}</strong>
+                            </p>
+                          </div>
+                          <div className={`px-4 py-2 rounded-xl text-center border font-bold text-xs ${smGrade.isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                            <p className="text-lg font-black">{smGrade.totalMarks} / 100</p>
+                            <p className="text-[10px] uppercase tracking-wider">{smGrade.isPass ? "PASSED (≥ 40%)" : "FAILED (< 40%)"}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase">Questions Attempted</p>
+                            <p className="text-sm font-bold text-zinc-900 mt-1">{smGrade.totalAttempted} / 50</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase">Correct Answers</p>
+                            <p className="text-sm font-bold text-emerald-600 mt-1">{smGrade.totalCorrect}</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-red-600 uppercase">Wrong Answers</p>
+                            <p className="text-sm font-bold text-red-600 mt-1">{smGrade.totalAttempted - smGrade.totalCorrect}</p>
+                          </div>
+                          <div className="bg-zinc-50 border border-zinc-200/80 p-3 rounded-xl">
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase">Percentage</p>
+                            <p className="text-sm font-bold text-zinc-900 mt-1">{smGrade.percentage}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs">
+                        <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/80 flex items-center justify-between">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-700">CRM, Sales &amp; Marketing Wing MCQs Evaluation (50 Questions)</h3>
+                          <span className="text-[10px] font-semibold text-zinc-500">2 Marks Each · No Negative Marking</span>
+                        </div>
+
+                        <div className="divide-y divide-zinc-100 p-6 space-y-4">
+                          {smGrade.questionDetails.map((q) => (
+                            <div key={q.id} className="p-4 bg-zinc-50/60 border border-zinc-200/80 rounded-xl space-y-3">
+                              <div className="flex justify-between items-start gap-3">
+                                <p className="text-xs font-bold text-zinc-900">
+                                  <span className="text-[#E61E32]">Q{q.number}.</span> {q.questionText}
+                                </p>
+                                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border shrink-0 ${q.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                                  {q.isCorrect ? "+2 Marks" : "0 Marks"}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <div className={`p-2.5 rounded-lg border font-semibold ${q.isCorrect ? "bg-emerald-50 text-emerald-800 border-emerald-200" : q.selectedOption ? "bg-red-50 text-red-800 border-red-200" : "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                                  <span className="text-[10px] text-zinc-400 uppercase block font-bold">Candidate Response</span>
+                                  {q.selectedOption ? `Option ${q.selectedOption}` : "Not Attempted"}
+                                </div>
+                                <div className="p-2.5 rounded-lg border bg-emerald-50/60 text-emerald-800 border-emerald-200 font-semibold">
+                                  <span className="text-[10px] text-emerald-600 uppercase block font-bold">Correct Key</span>
+                                  Option {q.correctOption}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                } else if (isTechnical) {
                   const tGrade = gradeTechnicalFull(answerData.answers || {});
                   return (
                     <>

@@ -33,6 +33,8 @@ import { MARKETING_QUESTIONS } from "./marketingQuestions";
 import { ANALYTICS_QUESTIONS } from "./analyticsQuestions";
 import { UIUX_QUESTIONS } from "./uiuxQuestions";
 import { TECHNICAL_QUESTIONS } from "./technicalQuestions";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "./businessAnalysisQuestions";
+import { SALES_MARKETING_QUESTIONS } from "./salesMarketingQuestions";
 
 interface CodeEditorProps {
   value: string;
@@ -610,6 +612,18 @@ export default function ExamSessionPage() {
       try {
         const parsed = JSON.parse(raw);
 
+        // 1. Read local backup draft
+        let localAnswers: Record<number, string> = {};
+        try {
+          const rawLocal = localStorage.getItem(`exam_draft_answers_${parsed.hallTicketNumber}`);
+          if (rawLocal) {
+            localAnswers = JSON.parse(rawLocal);
+          }
+        } catch (e) {
+          console.error("Failed to parse local draft answers:", e);
+        }
+
+        // 2. Fetch server database answers
         let dbAnswers: Record<number, string> = {};
         let dbBlocked = false;
         try {
@@ -639,39 +653,45 @@ export default function ExamSessionPage() {
         // Clear local storage lock since the database says it's active and allowed
         localStorage.removeItem(`exam_violated_${parsed.hallTicketNumber}`);
 
+        // Merge local answers and DB answers to guarantee zero data loss
+        const combinedAnswers: Record<number, string> = { ...localAnswers, ...dbAnswers };
+
+        try {
+          localStorage.setItem(`exam_draft_answers_${parsed.hallTicketNumber}`, JSON.stringify(combinedAnswers));
+        } catch (e) {}
+
         setSession(parsed);
 
         let loadedQuestions = QUESTIONS.map((q) => ({ ...q }));
 
-        // ── Redlix Training Exam 01 ─────────────────────────────────────────
+        // ── Question Bank & Duration Setup ──────────────────────────────────
+        let totalDurationSeconds = 180 * 60;
         const examNameLower = (parsed.exam.name || "").toLowerCase();
         if (examNameLower.includes("technical")) {
-          // Use the dedicated 50 Technical Wing question bank (15 Section A, 10 Section B, 25 Section C)
           loadedQuestions = TECHNICAL_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(120 * 60);
+          totalDurationSeconds = 120 * 60;
+        } else if (examNameLower.includes("business") || examNameLower.includes("bussiness")) {
+          loadedQuestions = BUSINESS_ANALYSIS_QUESTIONS.map((q) => ({ ...q }));
+          totalDurationSeconds = 180 * 60;
+        } else if (examNameLower.includes("sales")) {
+          loadedQuestions = SALES_MARKETING_QUESTIONS.map((q) => ({ ...q }));
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("ui") || examNameLower.includes("ux")) {
-          // Use the dedicated 50 MCQs UI & UX Wing question bank
           loadedQuestions = UIUX_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("data analytics") || examNameLower.includes("analytics")) {
-          // Use the dedicated 50 MCQs Data Analytics Wing question bank
           loadedQuestions = ANALYTICS_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("marketing")) {
-          // Use the dedicated 50 MCQs Marketing Wing question bank
           loadedQuestions = MARKETING_QUESTIONS.map((q) => ({ ...q }));
-          setTimeLeft(180 * 60);
+          totalDurationSeconds = 180 * 60;
         } else if (examNameLower.includes("redlix training exam 01")) {
-          // Use the dedicated training question bank (no shuffle needed)
           loadedQuestions = TRAINING01_QUESTIONS.map((q) => ({ ...q }));
           setIsTraining01(true);
-          // 75-minute exam for Training Exam 01
-          setTimeLeft(75 * 60);
+          totalDurationSeconds = 75 * 60;
         } else if (examNameLower.includes("redlix phase - 02") || examNameLower.includes("final phase")) {
-          // Use the Phase 02 questions
           loadedQuestions = PHASE02_QUESTIONS.map((q) => ({ ...q }));
-          // 120-minute exam for Phase 02
-          setTimeLeft(120 * 60);
+          totalDurationSeconds = 120 * 60;
         } else if (parsed.exam.id === 4 || examNameLower.includes("student forge")) {
           const sectionA = loadedQuestions.filter((q) => q.section === "A");
           const sectionB = loadedQuestions.filter((q) => q.section === "B");
@@ -685,10 +705,26 @@ export default function ExamSessionPage() {
           });
           loadedQuestions = [...shuffledA, ...shuffledB];
         }
+
+        // Restore or initialize timer
+        try {
+          const storedStartTime = localStorage.getItem(`exam_start_time_${parsed.hallTicketNumber}`);
+          if (storedStartTime) {
+            const elapsed = Math.floor((Date.now() - Number(storedStartTime)) / 1000);
+            const remaining = Math.max(10, totalDurationSeconds - elapsed);
+            setTimeLeft(remaining);
+          } else {
+            localStorage.setItem(`exam_start_time_${parsed.hallTicketNumber}`, Date.now().toString());
+            setTimeLeft(totalDurationSeconds);
+          }
+        } catch {
+          setTimeLeft(totalDurationSeconds);
+        }
+
         setQuestions(loadedQuestions);
 
         setAnswers((prev) => {
-          const initialAnswers = { ...prev, ...dbAnswers };
+          const initialAnswers = { ...prev, ...combinedAnswers };
           loadedQuestions.forEach((q) => {
             if (q.type === "coding" && q.starterCode && !initialAnswers[q.id]) {
               initialAnswers[q.id] = q.starterCode;
@@ -700,10 +736,10 @@ export default function ExamSessionPage() {
         setQuestionStatuses((prev) => {
           const statuses = { ...prev };
           loadedQuestions.forEach((q) => {
-            const ans = dbAnswers[q.id];
-            if (ans && ans.trim() !== "") {
+            const ans = combinedAnswers[q.id];
+            if (ans && ans.toString().trim() !== "") {
               if (q.type === "coding" && q.starterCode) {
-                statuses[q.id] = ans.trim() !== q.starterCode.trim() ? "answered" : "not_answered";
+                statuses[q.id] = ans.toString().trim() !== q.starterCode.trim() ? "answered" : "not_answered";
               } else {
                 statuses[q.id] = "answered";
               }
@@ -714,7 +750,8 @@ export default function ExamSessionPage() {
           if (loadedQuestions.length > 0) {
             const firstQId = loadedQuestions[0].id;
             if (!statuses[firstQId] || statuses[firstQId] === "not_visited") {
-              statuses[firstQId] = "not_answered";
+              const firstAns = combinedAnswers[firstQId];
+              statuses[firstQId] = firstAns && firstAns.toString().trim() !== "" ? "answered" : "not_answered";
             }
           }
           return statuses;
@@ -847,36 +884,177 @@ export default function ExamSessionPage() {
 
   
   useEffect(() => {
-    if (!setupDone || isSubmitted || !session || !videoRef.current) return;
+    if (!setupDone || isSubmitted || !session) return;
 
+    // True 240p Widescreen Canvas (426x240)
     const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 180;
-    const ctx = canvas.getContext("2d");
+    canvas.width = 426;
+    canvas.height = 240;
+    const ctx = canvas.getContext("2d", { alpha: false });
 
-    const uploadFrame = async () => {
-      if (!videoRef.current || !ctx) return;
+    // Active WebRTC peer connections keyed by proctorId
+    const peerConnections: Record<string, RTCPeerConnection> = {};
+
+    const iceConfig = {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+      ],
+    };
+
+    // Real-time WebSocket proctoring stream channel
+    const streamChannel = supabase.channel("live-proctoring-stream");
+    let isChannelReady = false;
+
+    streamChannel
+      .on("broadcast", { event: "request_webrtc_stream" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        try {
+          const proctorId = payload.proctorId;
+          if (peerConnections[proctorId]) {
+            peerConnections[proctorId].close();
+          }
+
+          const pc = new RTCPeerConnection(iceConfig);
+          peerConnections[proctorId] = pc;
+
+          const currentStream = streamRef.current;
+          if (currentStream) {
+            currentStream.getTracks().forEach((track) => {
+              pc.addTrack(track, currentStream);
+            });
+          }
+
+          pc.onicecandidate = (event) => {
+            if (event.candidate && isChannelReady) {
+              streamChannel.send({
+                type: "broadcast",
+                event: "webrtc_ice_candidate",
+                payload: {
+                  studentId: session.hallTicketNumber,
+                  proctorId,
+                  candidate: event.candidate,
+                  from: "student",
+                },
+              }).catch(() => {});
+            }
+          };
+
+          const offer = await pc.createOffer({
+            offerToReceiveVideo: false,
+            offerToReceiveAudio: false,
+          });
+          await pc.setLocalDescription(offer);
+
+          if (isChannelReady) {
+            streamChannel.send({
+              type: "broadcast",
+              event: "webrtc_offer",
+              payload: {
+                studentId: session.hallTicketNumber,
+                proctorId,
+                offer,
+              },
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.error("Error creating WebRTC offer for proctor:", err);
+        }
+      })
+      .on("broadcast", { event: "webrtc_answer" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId || !payload?.answer) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        const pc = peerConnections[payload.proctorId];
+        if (pc && pc.signalingState !== "closed") {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          } catch (err) {
+            console.error("Error setting WebRTC remote description on student:", err);
+          }
+        }
+      })
+      .on("broadcast", { event: "webrtc_ice_candidate" }, async ({ payload }: any) => {
+        if (!payload?.studentId || !payload?.proctorId || !payload?.candidate) return;
+        if (payload.from !== "proctor") return;
+        if (payload.studentId.toString().trim().toLowerCase() !== session.hallTicketNumber.trim().toLowerCase()) return;
+
+        const pc = peerConnections[payload.proctorId];
+        if (pc && pc.remoteDescription) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } catch (err) {
+            console.error("Error adding ICE candidate on student:", err);
+          }
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          isChannelReady = true;
+        }
+      });
+
+    let lastDbSync = 0;
+
+    const streamVideoFrame = () => {
+      const vid = videoRef.current;
+      if (!vid || !ctx) return;
+
       try {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.5);
+        if (vid.videoWidth > 0 && vid.videoHeight > 0) {
+          ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+          
+          // Ultra-fast lightweight 240p frame (WebP / JPEG)
+          const dataUrl = canvas.toDataURL("image/webp", 0.4) || canvas.toDataURL("image/jpeg", 0.4);
+          const now = Date.now();
 
-        await fetch("/api/exam/upload-feed", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId: session.hallTicketNumber,
-            image: dataUrl,
-          }),
-        });
+          // Real-time broadcast to proctors over WebSocket (0ms latency, high smoothness fallback)
+          if (isChannelReady) {
+            streamChannel.send({
+              type: "broadcast",
+              event: "live_frame",
+              payload: {
+                sessionId: session.hallTicketNumber,
+                liveFeed: dataUrl,
+                timestamp: now,
+                resolution: "240p",
+              },
+            }).catch(() => {});
+          }
+
+          // Periodic persistence to DB/storage (every 6 seconds)
+          if (now - lastDbSync > 6000) {
+            lastDbSync = now;
+            fetch("/api/exam/upload-feed", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                sessionId: session.hallTicketNumber,
+                image: dataUrl,
+              }),
+            }).catch(() => {});
+          }
+        }
       } catch (err) {
-        console.error("Error uploading camera snapshot:", err);
+        console.error("Error streaming 240p camera frame:", err);
       }
     };
 
-    const interval = setInterval(uploadFrame, 2500);
-    return () => clearInterval(interval);
+    const initialTimer = setTimeout(streamVideoFrame, 800);
+    // 160ms interval provides smooth ~6-7 FPS live video motion fallback
+    const streamInterval = setInterval(streamVideoFrame, 160);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(streamInterval);
+      Object.values(peerConnections).forEach((pc) => pc.close());
+      supabase.removeChannel(streamChannel);
+    };
   }, [setupDone, isSubmitted, session]);
 
   useEffect(() => {
@@ -1134,7 +1312,13 @@ export default function ExamSessionPage() {
   const saveAnswersToDb = useCallback(async (currentAnswers: Record<number, string>) => {
     if (!session?.hallTicketNumber) return;
     try {
-      const res = await fetch("/api/exam/save-answers", {
+      // 1. Instant local persistence backup
+      try {
+        localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(currentAnswers));
+      } catch (e) {}
+
+      // 2. Server persistence
+      await fetch("/api/exam/save-answers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1144,23 +1328,42 @@ export default function ExamSessionPage() {
           answers: currentAnswers,
         }),
       });
-      if (!res.ok) {
-        console.error("Failed to auto-save answers");
-      }
     } catch (err) {
       console.error("Error in auto-saving answers:", err);
     }
   }, [session?.hallTicketNumber]);
 
+  // Periodic backup auto-save every 5 seconds
   useEffect(() => {
     if (!setupDone || isSubmitted || !session?.hallTicketNumber) return;
 
     const timer = setTimeout(() => {
       saveAnswersToDb(answers);
-    }, 2000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [answers, setupDone, isSubmitted, session?.hallTicketNumber, saveAnswersToDb]);
+
+  // Save on tab close / power failure / navigation
+  useEffect(() => {
+    if (!setupDone || isSubmitted || !session?.hallTicketNumber) return;
+
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(answers));
+        const blob = new Blob(
+          [JSON.stringify({ hallTicketNumber: session.hallTicketNumber, answers })],
+          { type: "application/json" }
+        );
+        navigator.sendBeacon("/api/exam/save-answers", blob);
+      } catch (e) {}
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [setupDone, isSubmitted, session?.hallTicketNumber, answers]);
 
   useEffect(() => {
     return () => {
@@ -1237,23 +1440,57 @@ export default function ExamSessionPage() {
   };
 
   const handleAnswerChange = (val: string) => {
-    setAnswers((prev) => ({ ...prev, [questions[currentIndex].id]: val }));
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+    const qId = currentQ.id;
+
+    setAnswers((prev) => {
+      const updated = { ...prev, [qId]: val };
+      
+      // 1. Instant synchronous local storage backup (0ms recovery)
+      if (session?.hallTicketNumber) {
+        try {
+          localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(updated));
+        } catch (e) {}
+      }
+
+      // 2. Background database sync
+      saveAnswersToDb(updated);
+
+      return updated;
+    });
+
+    setQuestionStatuses((prev) => ({
+      ...prev,
+      [qId]: val && val.trim() !== "" ? "answered" : "not_answered",
+    }));
   };
 
   const handleClearResponse = () => {
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+
     setAnswers((prev) => {
       const next = { ...prev };
-      const currentQ = questions[currentIndex];
       if (currentQ.type === "coding" && currentQ.starterCode) {
         next[currentQ.id] = currentQ.starterCode;
       } else {
         delete next[currentQ.id];
       }
+
+      if (session?.hallTicketNumber) {
+        try {
+          localStorage.setItem(`exam_draft_answers_${session.hallTicketNumber}`, JSON.stringify(next));
+        } catch (e) {}
+      }
+
+      saveAnswersToDb(next);
       return next;
     });
+
     setQuestionStatuses((prev) => ({
       ...prev,
-      [questions[currentIndex].id]: "not_answered",
+      [currentQ.id]: "not_answered",
     }));
   };
 

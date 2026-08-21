@@ -70,7 +70,20 @@ export async function GET(req: NextRequest) {
           const isMarketingMCQ = qId >= 3001 && qId <= 3050;
           const isAnalyticsMCQ = qId >= 4001 && qId <= 4050;
           const isUIUXMCQ = qId >= 5001 && qId <= 5050;
-          return (isGeneralMCQ || isTrainingMCQ || isPhase02MCQ || isMarketingMCQ || isAnalyticsMCQ || isUIUXMCQ) && v && v.toString().trim();
+          const isBusinessAnalysisMCQ = qId >= 6001 && qId <= 6050;
+          const isSalesMarketingMCQ = qId >= 7001 && qId <= 7050;
+          return (
+            (isGeneralMCQ ||
+              isTrainingMCQ ||
+              isPhase02MCQ ||
+              isMarketingMCQ ||
+              isAnalyticsMCQ ||
+              isUIUXMCQ ||
+              isBusinessAnalysisMCQ ||
+              isSalesMarketingMCQ) &&
+            v &&
+            v.toString().trim()
+          );
         }).length;
         const codingAnswered = Object.entries(answers).filter(([k, v]: any) => {
           const qId = Number(k);
@@ -114,16 +127,36 @@ export async function GET(req: NextRequest) {
             equals: hallTicket,
             mode: "insensitive"
           }
+        },
+        include: {
+          exam: true
         }
       });
 
       if (!data) return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
 
       const mapped = {
+        id: data.id,
         candidate_name: data.candidateName,
         hall_ticket_number: data.hallTicketNumber,
+        registration_number: data.registrationNumber,
         email: data.email,
+        phone: data.phone,
+        college: data.college,
+        department: data.department,
+        year_of_study: data.yearOfStudy,
+        photo_url: data.photoUrl,
+        created_at: data.createdAt,
         exam_id: data.examId,
+        exam: data.exam ? {
+          id: data.exam.id,
+          name: data.exam.name,
+          date: data.exam.date,
+          time: data.exam.time,
+          company_name: data.exam.companyName,
+          total_qns: data.exam.totalQns,
+          types_of_qns: data.exam.typesOfQns,
+        } : null,
         answers: data.answers || {}
       };
 

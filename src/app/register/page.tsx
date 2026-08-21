@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { CheckCircle, Camera } from "lucide-react";
 import Link from "next/link";
 import { Turnstile } from "@/components/ui/turnstile";
+import { isExamRegistrationClosed } from "@/utils/examDates";
 
 interface ExamDetails {
   id: number;
@@ -98,6 +99,10 @@ function RegisterFormContent() {
       setErrorMsg("Invalid or missing examination reference ID.");
       return;
     }
+    if (isExamRegistrationClosed(exam)) {
+      setErrorMsg("Registration for this examination is closed. No new candidate entries can be accepted.");
+      return;
+    }
     if (!photo) {
       setErrorMsg("Please upload your candidate verification photo.");
       return;
@@ -156,6 +161,10 @@ function RegisterFormContent() {
   const coverSrc =
     (exam as any)?.company_logo && (exam as any).company_logo.startsWith("http")
       ? (exam as any).company_logo
+      : exam?.name?.toLowerCase().includes("business") || exam?.name?.toLowerCase().includes("bussiness")
+      ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+      : exam?.name?.toLowerCase().includes("sales")
+      ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
       : exam?.name?.toLowerCase().includes("technical")
       ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
       : exam?.name?.toLowerCase().includes("marketing")
@@ -178,32 +187,28 @@ function RegisterFormContent() {
   if (!examId || (!loadingExam && !exam)) {
     return (
       <div className="py-16 text-center max-w-md mx-auto bg-white border border-zinc-200/90 rounded-2xl p-8 shadow-xs">
-        <span className="material-symbols-rounded text-3xl text-red-500 mb-2">error</span>
         <p className="text-zinc-900 text-sm font-bold mb-1">Invalid Examination Reference</p>
         <p className="text-zinc-500 text-xs mb-6 leading-relaxed">The exam publication reference is missing or invalid. Please check the scheduled exams directory.</p>
         <Link
           href="/scheduled-exams"
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E61E32] hover:bg-[#d01729] text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
         >
-          <span className="material-symbols-rounded text-xs">arrow_back</span>
-          Back to Directory
+          ← Back to Directory
         </Link>
       </div>
     );
   }
 
-  if (exam && exam.registration_closed) {
+  if (exam && isExamRegistrationClosed(exam)) {
     return (
-      <div className="py-16 text-center max-w-md mx-auto bg-white border border-zinc-200/90 rounded-2xl p-8 shadow-xs">
-        <span className="material-symbols-rounded text-3xl text-zinc-400 mb-2">lock</span>
+      <div className="py-16 text-center max-w-md mx-auto bg-white border border-zinc-200/90 rounded-xl p-8 shadow-xs">
         <p className="text-zinc-900 text-sm font-bold mb-1">Registration Closed</p>
-        <p className="text-zinc-500 text-xs mb-6 leading-relaxed">Registrations for this examination have been closed. No new candidate entries are being accepted.</p>
+        <p className="text-zinc-500 text-xs mb-6 leading-relaxed">Registrations for this examination have ended. The scheduled examination period has concluded and no new candidate entries can be accepted.</p>
         <Link
           href="/scheduled-exams"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#E61E32] hover:bg-[#d01729] text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+          className="inline-flex items-center text-xs font-semibold text-white bg-[#E61E32] hover:bg-[#d01729] px-4 py-2 rounded-md transition-all cursor-pointer"
         >
-          <span className="material-symbols-rounded text-xs">arrow_back</span>
-          Back to Directory
+          ← Back to Scheduled Exams
         </Link>
       </div>
     );

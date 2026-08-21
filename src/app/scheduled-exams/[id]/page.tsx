@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { encodeExamId } from "@/utils/secureId";
+import { isExamRegistrationClosed } from "@/utils/examDates";
 
 interface Exam {
   id: number;
@@ -23,7 +24,6 @@ interface Exam {
 
 export default function ExamDetailPage() {
   const { id: rawParam } = useParams<{ id: string }>();
-  const router = useRouter();
   const supabase = createClient();
 
   const [exam, setExam] = useState<Exam | null>(null);
@@ -37,7 +37,7 @@ export default function ExamDetailPage() {
     const link = window.location.origin + "/scheduled-exams/" + encodeExamId(exam.id);
     navigator.clipboard.writeText(link);
     setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   useEffect(() => {
@@ -84,6 +84,10 @@ export default function ExamDetailPage() {
   const coverSrc =
     (exam as any)?.company_logo && (exam as any).company_logo.startsWith("http")
       ? (exam as any).company_logo
+      : name.includes("business") || name.includes("bussiness")
+      ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+      : name.includes("sales")
+      ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
       : name.includes("technical")
       ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
       : name.includes("marketing")
@@ -102,14 +106,14 @@ export default function ExamDetailPage() {
 
   return (
     <div className="min-h-screen bg-zinc-100 font-sans text-zinc-900 flex flex-col selection:bg-[#E61E32]/10 selection:text-[#E61E32]">
-      {/* Redlix Modern Header */}
+      {/* Redlix Header */}
       <header className="sticky top-0 z-50 bg-[#E61E32] border-b border-[#d01729] py-3 px-6 md:px-8 shadow-xs">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-3">
             <img
               src="https://ik.imagekit.io/dypkhqxip/logotraining?updatedAt=1783099023149"
               alt="Redlix Logo"
-              className="h-7.5 md:h-8 w-auto object-contain shrink-0 transition-transform group-hover:scale-[1.02]"
+              className="h-7 md:h-7.5 w-auto object-contain shrink-0"
             />
             <div className="flex items-center gap-2 border-l border-white/20 pl-3">
               <span className="font-semibold text-xs text-white font-inter tracking-wide">Exam Specification</span>
@@ -122,63 +126,60 @@ export default function ExamDetailPage() {
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6">
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center">
-            <div className="w-9 h-9 rounded-full border-2 border-t-[#E61E32] border-r-zinc-200 border-b-zinc-200 border-l-zinc-200 animate-spin mb-3" />
-            <p className="text-zinc-500 text-xs font-medium tracking-wide">Loading exam specification...</p>
+            <div className="w-8 h-8 rounded-full border-2 border-t-[#E61E32] border-r-zinc-200 border-b-zinc-200 border-l-zinc-200 animate-spin mb-3" />
+            <p className="text-zinc-500 text-xs font-medium">Loading exam specification...</p>
           </div>
         ) : notFound || !exam ? (
-          <div className="py-20 text-center bg-white border border-zinc-200/80 rounded-2xl p-8 shadow-xs">
-            <span className="material-symbols-rounded text-3xl text-zinc-300 mb-2">find_in_page</span>
-            <p className="text-zinc-700 font-semibold text-sm mb-1">Exam record not found</p>
+          <div className="py-20 text-center bg-white border border-zinc-200/80 rounded-xl p-8 shadow-xs">
+            <p className="text-zinc-800 font-semibold text-sm mb-1">Exam record not found</p>
             <p className="text-zinc-400 text-xs mb-4">The requested exam identifier does not exist or has been archived.</p>
             <Link
               href="/scheduled-exams"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#E61E32] hover:bg-[#d01729] px-4 py-2 rounded-xl transition-all shadow-xs"
+              className="inline-flex items-center text-xs font-semibold text-white bg-[#E61E32] hover:bg-[#d01729] px-4 py-2 rounded-md transition-all"
             >
-              <span className="material-symbols-rounded text-xs">arrow_back</span>
-              Back to Scheduled Exams
+              ← Back to Scheduled Exams
             </Link>
           </div>
         ) : (
-          <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="space-y-5">
 
-            {/* Breadcrumb Navigation & Copy Link Button */}
+            {/* Breadcrumb Navigation & Token */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-500">
               <div className="flex items-center gap-2">
-                <Link href="/scheduled-exams" className="hover:text-zinc-900 transition-colors font-medium">Scheduled Exams</Link>
+                <Link href="/scheduled-exams" className="hover:text-zinc-900 transition-colors">Scheduled Exams</Link>
                 <span>/</span>
                 <span className="font-semibold text-zinc-900 truncate max-w-[280px] sm:max-w-none">{exam.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 text-xs font-bold rounded-xl border border-zinc-200/90 transition-all cursor-pointer shadow-2xs"
-                >
-                  <svg className="w-3.5 h-3.5 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <span>{copied ? "Link Copied!" : "Copy Exam Link"}</span>
-                </button>
-                <span className="text-[10px] font-mono text-zinc-500 font-semibold bg-white px-2.5 py-1.5 rounded-xl border border-zinc-200/90 shadow-2xs">
+                <span className="text-[10px] font-mono font-semibold text-zinc-700 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-200 shadow-2xs select-none">
                   TOKEN: {encodeExamId(exam.id)}
                 </span>
+                {isExamRegistrationClosed(exam) ? (
+                  <span className="text-[10px] font-semibold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200 select-none">
+                    Closed
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold text-zinc-900 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-zinc-200 shadow-2xs select-none">
+                    Open
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* 2-Column Responsive Grid */}
+            {/* 2-Column Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              {/* Left Column (Primary Info - 7/12 cols on desktop) */}
+              {/* Left Column (Details - 7/12 cols) */}
               <div className="lg:col-span-7 space-y-5">
                 
                 {/* Header Title Card */}
                 <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200/80 px-2.5 py-0.5 rounded-md">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#E61E32] bg-red-50 border border-red-200 px-2 py-0.5 rounded">
                       {exam.company_name}
                     </span>
-                    <span className="text-xs text-zinc-500 font-medium flex items-center gap-1">
-                      <span className="material-symbols-rounded text-xs text-zinc-400">group</span>
-                      <strong className="text-zinc-900 font-bold">{regCount}</strong> Registered
+                    <span className="text-xs text-zinc-600 font-medium">
+                      <strong className="text-zinc-900">{regCount}</strong> Candidates Registered
                     </span>
                   </div>
                   <h1 className="text-lg md:text-xl font-bold text-zinc-900 font-inter leading-snug">
@@ -201,15 +202,14 @@ export default function ExamDetailPage() {
                       );
                     })()}
                   </h1>
-                  <p className="text-xs text-zinc-500 font-medium">Official Proctored Assessment for {exam.company_name} Candidates</p>
+                  <p className="text-xs text-zinc-500 font-normal">Official Proctored Assessment for {exam.company_name} Candidates</p>
                 </div>
 
                 {/* Description & Syllabus Card */}
                 {exam.description && (
                   <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
-                      <span className="material-symbols-rounded text-xs text-[#E61E32]">description</span>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Exam Synopsis &amp; Syllabus</h2>
+                    <div className="border-b border-zinc-100 pb-2.5">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Exam Synopsis &amp; Syllabus</h2>
                     </div>
 
                     <p className="text-xs text-zinc-700 leading-relaxed font-normal whitespace-pre-line">
@@ -224,9 +224,8 @@ export default function ExamDetailPage() {
                           {syllabusItems.map((topic, i) => (
                             <span
                               key={i}
-                              className="text-[11px] font-semibold text-zinc-700 bg-zinc-50 border border-zinc-200/80 px-2.5 py-1 rounded-md flex items-center gap-1"
+                              className="text-[11px] font-medium text-zinc-700 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded"
                             >
-                              <span className="w-1 h-1 rounded-full bg-[#E61E32]" />
                               {topic}
                             </span>
                           ))}
@@ -239,139 +238,127 @@ export default function ExamDetailPage() {
                 {/* Additional Rules & Guidelines Table */}
                 {Object.keys(exam.custom_fields || {}).length > 0 && (
                   <div className="bg-white border border-zinc-200/90 rounded-md overflow-hidden shadow-xs">
-                    <div className="px-6 py-3.5 border-b border-zinc-100 bg-zinc-50/80 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-rounded text-xs text-[#E61E32]">gavel</span>
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Instructions &amp; Regulations</h2>
-                      </div>
-                      <span className="text-[10px] font-semibold text-zinc-400">{Object.keys(exam.custom_fields).length} Rules</span>
+                    <div className="px-6 py-3 border-b border-zinc-100 bg-zinc-50 flex items-center justify-between">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Instructions &amp; Regulations</h2>
+                      <span className="text-[10px] font-medium text-zinc-400">{Object.keys(exam.custom_fields).length} Guidelines</span>
                     </div>
                     <div className="divide-y divide-zinc-100 text-xs">
                       {Object.entries(exam.custom_fields).map(([key, val]) => (
                         <div key={key} className="flex justify-between items-center px-6 py-3 hover:bg-zinc-50/50 transition-colors">
-                          <span className="text-zinc-500 font-medium">{key}</span>
-                          <span className="text-zinc-900 font-bold text-right ml-4">{val}</span>
+                          <span className="text-zinc-500 font-normal">{key}</span>
+                          <span className="text-zinc-900 font-semibold text-right ml-4">{val}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Candidate Action Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-6 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-rounded text-xs text-[#E61E32]">how_to_reg</span>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600">Candidate Registration Portal</h2>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Real-Time Proctored</span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 items-center pt-1">
-                    <Link
-                      href="/register/edit"
-                      className="flex-1 sm:flex-none px-4 py-2.5 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-semibold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                    >
-                      Edit Registration
-                    </Link>
-
-                    {exam.show_login && (
-                      <Link
-                        href={`/exam-login?examId=${exam.id}`}
-                        className="flex-1 sm:flex-none px-5 py-2.5 border border-[#E61E32] text-[#E61E32] hover:bg-red-50 font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                      >
-                        Enter Exam →
-                      </Link>
-                    )}
-
-                    {exam.registration_closed ? (
-                      <span className="flex-1 sm:flex-none px-5 py-2.5 bg-zinc-100 text-zinc-400 font-semibold text-xs rounded-md cursor-not-allowed text-center inline-block">
-                        Registration Closed
-                      </span>
-                    ) : (
-                      <Link
-                        href={`/register?examId=${exam.id}`}
-                        className="flex-1 sm:flex-none px-6 py-2.5 bg-[#E61E32] hover:bg-[#d01729] text-white font-bold text-xs rounded-md shadow-xs transition-all cursor-pointer text-center inline-block"
-                      >
-                        Register for Exam
-                      </Link>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-zinc-400">
-                    {exam.show_login
-                      ? 'Already registered? Click "Enter Exam" to authenticate with your hall ticket.'
-                      : "Exam login entry will open prior to the scheduled assessment start time."}
-                  </p>
-                </div>
-
               </div>
 
-              {/* Right Column (Sidebar - 5/12 cols on desktop) */}
+              {/* Right Column (Sidebar with Banner Image & Clean Action Suite - 5/12 cols) */}
               <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
                 
-                {/* 1200x1200px High Resolution Cover Image Card */}
+                {/* Banner & Action Card */}
                 <div className="bg-white border border-zinc-200/90 rounded-md p-4 shadow-xs space-y-3">
+                  {/* High Resolution Cover Image */}
                   <div
                     className="w-full aspect-square rounded-md overflow-hidden border border-zinc-200/80 bg-zinc-900 shadow-xs relative group cursor-pointer"
                     onClick={() => window.open(coverSrc, "_blank")}
-                    title="Click to view full resolution banner"
+                    title="Click to view full banner"
                   >
                     <img
                       src={coverSrc}
                       alt={exam.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 backdrop-blur-[2px]">
-                      <span className="material-symbols-rounded text-sm">open_in_full</span>
-                      <span>View Full Banner</span>
-                    </div>
                   </div>
 
-                  <button
-                    onClick={handleCopyLink}
-                    className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-md transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-                  >
-                    <svg className="w-4 h-4 text-[#E61E32]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <span>{copied ? "Link Copied to Clipboard!" : "Copy Exam Detail Link"}</span>
-                  </button>
+                  {/* Clean Action Suite Under Banner */}
+                  <div className="space-y-2 pt-0.5">
+                    {/* Primary Registration Action */}
+                    {isExamRegistrationClosed(exam) ? (
+                      <div className="w-full py-2.5 px-4 bg-zinc-100 border border-zinc-300 text-zinc-500 font-semibold text-xs rounded-md text-center">
+                        Registration Closed
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/register?examId=${exam.id}`}
+                        className="w-full py-2.5 px-4 bg-[#E61E32] hover:bg-[#c91527] active:scale-[0.99] text-white font-semibold text-xs sm:text-sm rounded-md shadow-xs transition-all flex items-center justify-center cursor-pointer text-center"
+                      >
+                        Register for Exam
+                      </Link>
+                    )}
+
+                    {/* Enter Exam Portal (if login allowed) */}
+                    {exam.show_login && (
+                      <Link
+                        href={`/exam-login?examId=${exam.id}`}
+                        className="w-full py-2 px-4 bg-white border border-[#E61E32] text-[#E61E32] hover:bg-red-50 active:scale-[0.99] font-semibold text-xs rounded-md shadow-2xs transition-all flex items-center justify-center cursor-pointer text-center"
+                      >
+                        Enter Exam Portal
+                      </Link>
+                    )}
+
+                    {/* Sub Actions: Edit Details & Copy Link */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href="/register/edit"
+                        className="py-2 px-3 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-900 text-xs font-semibold rounded-md transition-all flex items-center justify-center cursor-pointer text-center"
+                      >
+                        Edit Details
+                      </Link>
+
+                      <button
+                        onClick={handleCopyLink}
+                        className="py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center justify-center"
+                      >
+                        {copied ? (
+                          <span className="text-emerald-400">Copied!</span>
+                        ) : (
+                          <span>Copy Link</span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Clean Notice */}
+                    <p className="text-[11px] text-zinc-500 font-normal text-center pt-0.5">
+                      {isExamRegistrationClosed(exam)
+                        ? "Registration window has concluded for this examination"
+                        : "Proctored Assessment • Instant Hall Ticket Issued"}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Key Metrics Stack Card */}
-                <div className="bg-white border border-zinc-200/90 rounded-md p-5 shadow-xs space-y-4">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 pb-2.5">
+                <div className="bg-white border border-zinc-200/90 rounded-md p-5 shadow-xs space-y-3.5">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 pb-2">
                     Assessment Parameters
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {[
-                      { label: "Schedule Date", value: exam.date, icon: "calendar_today" },
-                      { label: "Start Time", value: exam.time, icon: "schedule" },
-                      { label: "Total Questions", value: `${exam.total_qns} Questions`, icon: "quiz" },
-                      { label: "Question Format", value: exam.types_of_qns || "Multiple Choice Questions (MCQs)", icon: "format_list_bulleted" },
-                    ].map(({ label, value, icon }) => (
-                      <div key={label} className="flex items-center gap-3 p-3 rounded-md bg-zinc-50/70 border border-zinc-100/90">
-                        <span className="material-symbols-rounded text-sm text-[#E61E32] shrink-0">{icon}</span>
-                        <div>
-                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{label}</p>
-                          <p className="text-xs font-bold text-zinc-900 mt-0.5 leading-snug">{value}</p>
-                        </div>
+                      { label: "Schedule Date", value: exam.date },
+                      { label: "Start Time", value: exam.time },
+                      { label: "Total Questions", value: `${exam.total_qns} Questions` },
+                      { label: "Question Format", value: exam.types_of_qns || "Multiple Choice Questions (MCQs)" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex justify-between items-center py-2 px-3 rounded bg-zinc-50 border border-zinc-100">
+                        <span className="text-xs text-zinc-500 font-normal">{label}</span>
+                        <span className="text-xs font-semibold text-zinc-900 text-right ml-3">{value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Return Link */}
-                <div className="pt-1">
+                <div className="pt-0.5">
                   <Link
                     href="/scheduled-exams"
-                    className="text-xs text-zinc-500 hover:text-zinc-900 font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="text-xs text-zinc-500 hover:text-zinc-900 font-medium inline-flex items-center transition-colors"
                   >
-                    <span className="material-symbols-rounded text-xs">arrow_back</span>
-                    Return to Scheduled Exams Directory
+                    ← Return to Scheduled Exams Directory
                   </Link>
                 </div>
 
@@ -382,17 +369,6 @@ export default function ExamDetailPage() {
           </div>
         )}
       </main>
-
-      <footer className="py-8 border-t border-zinc-200/80 bg-white text-center text-xs text-zinc-500 font-medium">
-        © 2026 Redlix Secure. Smart Proctored Examination System.
-      </footer>
-
-      {copied && (
-        <div className="fixed bottom-6 right-6 z-50 bg-zinc-950 text-white text-xs font-semibold px-4 py-3 rounded-md shadow-xl border border-zinc-800 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-          <span>✓ Exam detail link &amp; cover preview copied to clipboard!</span>
-        </div>
-      )}
     </div>
   );
 }

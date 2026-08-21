@@ -26,7 +26,11 @@ interface ExamSession {
 
 function parseExamDateTime(date: string, time: string): Date | null {
   try {
-    const dateStr = date.split("T")[0];
+    const rawStart = date.split("·")[0].split(/\s+(?:to|-)\s+/i)[0].trim().split("T")[0];
+    const ddmmyyyy = rawStart.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+    const dateStr = ddmmyyyy
+      ? `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`
+      : rawStart;
     const combined = `${dateStr}T${to24h(time)}:00`;
     const d = new Date(combined);
     return isNaN(d.getTime()) ? null : d;

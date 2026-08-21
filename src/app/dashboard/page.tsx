@@ -1,22 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { createClient } from "@/utils/supabase/client";
 import { QUESTIONS } from "@/app/exam-session/questions";
 import { TECHNICAL_QUESTIONS } from "@/app/exam-session/technicalQuestions";
-import { gradeTechnicalFull } from "@/app/exam-session/technicalAnswerKey";
+import { TECHNICAL_ANSWER_KEY, gradeTechnicalFull } from "@/app/exam-session/technicalAnswerKey";
 import { UIUX_QUESTIONS } from "@/app/exam-session/uiuxQuestions";
-import { gradeUIUXFull } from "@/app/exam-session/uiuxAnswerKey";
+import { UIUX_ANSWER_KEY, gradeUIUXFull } from "@/app/exam-session/uiuxAnswerKey";
 import { MARKETING_QUESTIONS } from "@/app/exam-session/marketingQuestions";
-import { gradeMarketingFull } from "@/app/exam-session/marketingAnswerKey";
+import { MARKETING_ANSWER_KEY, gradeMarketingFull } from "@/app/exam-session/marketingAnswerKey";
 import { ANALYTICS_QUESTIONS } from "@/app/exam-session/analyticsQuestions";
-import { gradeAnalyticsFull } from "@/app/exam-session/analyticsAnswerKey";
+import { ANALYTICS_ANSWER_KEY, gradeAnalyticsFull } from "@/app/exam-session/analyticsAnswerKey";
 import { TRAINING01_QUESTIONS } from "@/app/exam-session/training01Questions";
 import { gradeTraining01Full } from "@/app/exam-session/training01AnswerKey";
 import { PHASE02_QUESTIONS } from "@/app/exam-session/phase02Questions";
 import { gradePhase02Full } from "@/app/exam-session/phase02AnswerKey";
+import { BUSINESS_ANALYSIS_QUESTIONS } from "@/app/exam-session/businessAnalysisQuestions";
+import { BUSINESS_ANALYSIS_ANSWER_KEY, gradeBusinessAnalysisFull } from "@/app/exam-session/businessAnalysisAnswerKey";
+import { SALES_MARKETING_QUESTIONS } from "@/app/exam-session/salesMarketingQuestions";
+import { SALES_MARKETING_ANSWER_KEY, gradeSalesMarketingFull } from "@/app/exam-session/salesMarketingAnswerKey";
 
 interface Session {
   id: string;
@@ -119,6 +124,7 @@ export default function Dashboard() {
     return res.json();
   };
 
+  const supabase = createClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,6 +137,8 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStreamSession, setActiveStreamSession] = useState<Session | null>(null);
+  const [isWebRtcConnected, setIsWebRtcConnected] = useState(false);
+  const webRtcVideoRef = useRef<HTMLVideoElement>(null);
 
   
   const [examName, setExamName] = useState("");
@@ -157,6 +165,10 @@ export default function Dashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [selectedExamForCandidates, setSelectedExamForCandidates] = useState<Exam | null>(null);
   const [selectedCandidateForAnswers, setSelectedCandidateForAnswers] = useState<Registration | null>(null);
+  const [answersModalFilter, setAnswersModalFilter] = useState<"all" | "correct" | "incorrect" | "unattempted">("all");
+  const [enableNegativeMarking, setEnableNegativeMarking] = useState<boolean>(true);
+  const [negativeMarkValue, setNegativeMarkValue] = useState<number>(0.5);
+  const [copiedHallTicket, setCopiedHallTicket] = useState(false);
   const [loadingExamsTab, setLoadingExamsTab] = useState(false);
 
   const fetchExamsAndRegistrations = async () => {
@@ -458,6 +470,22 @@ export default function Dashboard() {
       )
       .subscribe();
 
+    // Direct real-time live webcam frame broadcast channel (0-latency)
+    const streamChannel = supabase
+      .channel("live-proctoring-stream")
+      .on("broadcast", { event: "live_frame" }, ({ payload }: any) => {
+        if (!payload?.sessionId || !payload?.liveFeed) return;
+        const sId = payload.sessionId.toString().trim().toLowerCase();
+        const feed = payload.liveFeed;
+        setSessions((prev) =>
+          prev.map((s) => (s.id.toLowerCase() === sId ? { ...s, liveFeed: feed } : s))
+        );
+        setActiveStreamSession((prev) =>
+          prev && prev.id.toLowerCase() === sId ? { ...prev, liveFeed: feed } : prev
+        );
+      })
+      .subscribe();
+
     const presenceChannel = supabase.channel("exam-presence-global");
     presenceChannel
       .on("presence", { event: "sync" }, () => {
@@ -474,11 +502,118 @@ export default function Dashboard() {
       })
       .subscribe();
 
+    // Auto-refresh sessions every 4 seconds to guarantee feeds load reliably
+    const refreshInterval = setInterval(() => {
+      fetchSessions();
+    }, 4000);
+
     return () => {
+      clearInterval(refreshInterval);
       supabase.removeChannel(channel);
+      supabase.removeChannel(streamChannel);
       supabase.removeChannel(presenceChannel);
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!activeStreamSession) {
+      setIsWebRtcConnected(false);
+      return;
+    }
+
+    const studentId = activeStreamSession.id.toString().trim().toLowerCase();
+    const proctorId = "proctor_" + Math.random().toString(36).substring(2, 9);
+    const streamChannel = supabase.channel("live-proctoring-stream");
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+      ],
+    });
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        if (webRtcVideoRef.current) {
+          webRtcVideoRef.current.srcObject = event.streams[0];
+          setIsWebRtcConnected(true);
+        }
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        streamChannel.send({
+          type: "broadcast",
+          event: "webrtc_ice_candidate",
+          payload: {
+            studentId,
+            proctorId,
+            candidate: event.candidate,
+            from: "proctor",
+          },
+        }).catch(() => {});
+      }
+    };
+
+    streamChannel
+      .on("broadcast", { event: "webrtc_offer" }, async ({ payload }: any) => {
+        if (!payload?.offer || !payload?.studentId || !payload?.proctorId) return;
+        if (payload.proctorId !== proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== studentId) return;
+
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          streamChannel.send({
+            type: "broadcast",
+            event: "webrtc_answer",
+            payload: {
+              studentId,
+              proctorId,
+              answer,
+            },
+          }).catch(() => {});
+        } catch (err) {
+          console.error("Error creating WebRTC answer on proctor:", err);
+        }
+      })
+      .on("broadcast", { event: "webrtc_ice_candidate" }, async ({ payload }: any) => {
+        if (!payload?.candidate || !payload?.studentId || !payload?.proctorId) return;
+        if (payload.from !== "student") return;
+        if (payload.proctorId !== proctorId) return;
+        if (payload.studentId.toString().trim().toLowerCase() !== studentId) return;
+
+        try {
+          if (pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          }
+        } catch (err) {
+          console.error("Error adding student ICE candidate on proctor:", err);
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === "SUBSCRIBED") {
+          streamChannel.send({
+            type: "broadcast",
+            event: "request_webrtc_stream",
+            payload: {
+              studentId,
+              proctorId,
+            },
+          }).catch(() => {});
+        }
+      });
+
+    return () => {
+      pc.close();
+      setIsWebRtcConnected(false);
+      supabase.removeChannel(streamChannel);
+    };
+  }, [activeStreamSession]);
 
   useEffect(() => {
     if ((activeTab === "exams-list" || activeTab === "overview") && isAuthenticated) {
@@ -953,11 +1088,18 @@ export default function Dashboard() {
                       
                       <div className="relative aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-zinc-200">
                         {session.liveFeed ? (
-                          <img 
-                            src={session.liveFeed} 
-                            alt={session.student} 
-                            className="w-full h-full object-cover scale-x-[-1]" 
-                          />
+                          <>
+                            <img 
+                              src={session.liveFeed} 
+                              alt={session.student} 
+                              className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-150" 
+                              style={{ imageRendering: "auto", transform: "scaleX(-1) translateZ(0)" }}
+                            />
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/70 backdrop-blur-xs text-[9px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>240p LIVE</span>
+                            </div>
+                          </>
                         ) : (
                           <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 p-2 text-center bg-zinc-900">
                             <span className="material-symbols-outlined text-lg mb-1 animate-pulse">videocam_off</span>
@@ -1585,13 +1727,14 @@ export default function Dashboard() {
                               <span className="text-xs font-semibold text-zinc-500 font-mono">
                                 {Object.keys(candidate.answers ?? {}).length} Saved Answers
                               </span>
-                              <button
-                                onClick={() => setSelectedCandidateForAnswers(candidate)}
-                                className="px-3.5 py-1.5 bg-[#E61E32] hover:bg-[#d01729] text-white font-semibold text-xs rounded-lg cursor-pointer border-none transition-all flex items-center gap-1 shadow-xs"
+                              <Link
+                                href={`/dashboard/candidate-answers/${encodeURIComponent(candidate.hall_ticket_number || candidate.id || "")}`}
+                                target="_blank"
+                                className="px-3.5 py-1.5 bg-[#E61E32] hover:bg-[#d01729] text-white font-semibold text-xs rounded-lg transition-all inline-flex items-center gap-1 shadow-xs no-underline"
                               >
-                                <span className="material-symbols-outlined text-sm">visibility</span>
+                                <span className="material-symbols-outlined text-sm">open_in_new</span>
                                 <span>Show Answers</span>
-                              </button>
+                              </Link>
                             </div>
                           </div>
                         </div>
@@ -1981,15 +2124,42 @@ export default function Dashboard() {
             <button onClick={() => setActiveStreamSession(null)} className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"><span className="material-symbols-outlined text-md">close</span></button>
           </div>
 
-          {}
+          {/* Main Video View Container */}
           <div className="relative aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-zinc-200">
-            {currentStream.liveFeed ? (
+            {/* Native WebRTC 30 FPS Live Stream */}
+            <video
+              ref={webRtcVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover scale-x-[-1] ${isWebRtcConnected ? "block" : "hidden"}`}
+              style={{ transform: "scaleX(-1) translateZ(0)" }}
+            />
+
+            {/* Seamless Real-time Frame Fallback (240p) */}
+            {currentStream.liveFeed && !isWebRtcConnected && (
               <img 
                 src={currentStream.liveFeed} 
                 alt="Candidate webcam stream" 
-                className="w-full h-full object-cover scale-x-[-1]" 
+                className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-150" 
+                style={{ imageRendering: "auto", transform: "scaleX(-1) translateZ(0)" }}
               />
-            ) : (
+            )}
+
+            {/* Live Video Quality Badge */}
+            {isWebRtcConnected ? (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-black/80 backdrop-blur-xs text-[10px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1.5 border border-emerald-500/40 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>30 FPS LIVE HD (WEBRTC)</span>
+              </div>
+            ) : currentStream.liveFeed ? (
+              <div className="absolute top-3 right-3 px-2 py-1 bg-black/75 backdrop-blur-xs text-[10px] font-bold text-emerald-400 font-mono rounded flex items-center gap-1.5 border border-emerald-500/30 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>240p SMOOTH STREAM</span>
+              </div>
+            ) : null}
+
+            {!currentStream.liveFeed && !isWebRtcConnected && (
               <>
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.6)_100%)] pointer-events-none" />
                 
@@ -2060,441 +2230,6 @@ export default function Dashboard() {
                   Dismiss Alert
                 </button>
               </div>
-            </div>
-
-          </div>
-        </div>
-      );
-    })()}
-
-    {selectedCandidateForAnswers && (() => {
-      const candidate = selectedCandidateForAnswers;
-      const exam = exams.find((e) => e.id === candidate.exam_id);
-      
-      let candidateQuestions = QUESTIONS.map((q) => ({ ...q }));
-
-      // ── Exam Type & Grading ──────────────────────────────
-      const examName = exam ? exam.name.toLowerCase() : "";
-      const isTechnicalExam = exam && examName.includes("technical");
-      const isUIUXExam = exam && (examName.includes("ui") || examName.includes("ux"));
-      const isMarketingExam = exam && examName.includes("marketing");
-      const isAnalyticsExam = exam && examName.includes("analytics");
-      const isTraining01Exam = exam && examName.includes("redlix training exam 01");
-      const isPhase02Exam = exam && (examName.includes("redlix phase - 02") || examName.includes("final phase"));
-
-      let technicalGrade: ReturnType<typeof gradeTechnicalFull> | null = null;
-      let uiuxGrade: ReturnType<typeof gradeUIUXFull> | null = null;
-      let marketingGrade: ReturnType<typeof gradeMarketingFull> | null = null;
-      let analyticsGrade: ReturnType<typeof gradeAnalyticsFull> | null = null;
-      let training01Grade: ReturnType<typeof gradeTraining01Full> | null = null;
-      let phase02Grade: ReturnType<typeof gradePhase02Full> | null = null;
-
-      if (isTechnicalExam) {
-        candidateQuestions = TECHNICAL_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          technicalGrade = gradeTechnicalFull(candidate.answers as Record<string | number, string>);
-        }
-      } else if (isUIUXExam) {
-        candidateQuestions = UIUX_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          uiuxGrade = gradeUIUXFull(candidate.answers as Record<string | number, string>);
-        }
-      } else if (isMarketingExam) {
-        candidateQuestions = MARKETING_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          marketingGrade = gradeMarketingFull(candidate.answers as Record<string | number, string>);
-        }
-      } else if (isAnalyticsExam) {
-        candidateQuestions = ANALYTICS_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          analyticsGrade = gradeAnalyticsFull(candidate.answers as Record<string | number, string>);
-        }
-      } else if (isTraining01Exam) {
-        candidateQuestions = TRAINING01_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          training01Grade = gradeTraining01Full(candidate.answers as Record<string | number, string>);
-        }
-      } else if (isPhase02Exam) {
-        candidateQuestions = PHASE02_QUESTIONS.map((q) => ({ ...q }));
-        if (candidate.answers) {
-          phase02Grade = gradePhase02Full(candidate.answers as Record<string | number, string>);
-        }
-      } else if (candidate.exam_id === 4 || (exam && exam.name.toLowerCase().includes("student forge"))) {
-        const sectionA = candidateQuestions.filter((q) => q.section === "A");
-        const sectionB = candidateQuestions.filter((q) => q.section === "B");
-        if (candidate.hall_ticket_number) {
-          const shuffledA = shuffleQuestions(sectionA, candidate.hall_ticket_number).slice(0, 30);
-          const shuffledB = shuffleQuestions(sectionB, candidate.hall_ticket_number + "-B");
-          shuffledA.forEach((q, idx) => {
-            q.number = idx + 1;
-          });
-          shuffledB.forEach((q, idx) => {
-            q.number = idx + 1;
-          });
-          candidateQuestions = [...shuffledA, ...shuffledB];
-        }
-      }
-
-      const mcqQuestions = candidateQuestions.filter(q => q.type === "mcq");
-      const codingQuestions = candidateQuestions.filter(q => q.type === "coding" || q.type === "open");
-
-      const isQuestionAttempted = (q: typeof QUESTIONS[0]) => {
-        const ans = candidate.answers?.[q.id];
-        if (!ans || ans.trim() === "") return false;
-        if (q.type === "coding" && q.starterCode) {
-          return ans.trim() !== q.starterCode.trim();
-        }
-        return true;
-      };
-
-      const mcqAttempted = mcqQuestions.filter(isQuestionAttempted).length;
-      const codingAttempted = codingQuestions.filter(isQuestionAttempted).length;
-
-      return (
-        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in select-text">
-          <div className="relative w-full max-w-4xl bg-white border border-zinc-250 rounded-none overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
-              <div>
-                <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-orange-600 leading-none">assignment_ind</span>
-                  Answers Review: {candidate.candidate_name}
-                </h3>
-                <p className="text-[11px] text-zinc-500">
-                  Hall Ticket: <span className="font-mono font-bold text-zinc-700">{candidate.hall_ticket_number}</span> • Exam: <span className="font-semibold text-zinc-700">{exam?.name || "Technical Assessment"}</span>
-                </p>
-              </div>
-              <button 
-                onClick={() => setSelectedCandidateForAnswers(null)} 
-                className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <span className="material-symbols-outlined text-md">close</span>
-              </button>
-            </div>
-
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 border-b border-zinc-200 bg-zinc-50/50 shrink-0 divide-x divide-zinc-200 text-center py-2.5">
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">Total Progress</p>
-                <p className="text-sm font-bold text-zinc-800 mt-0.5">
-                  {mcqAttempted + codingAttempted} / {candidateQuestions.length} Attempted
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">MCQs Section</p>
-                <p className="text-sm font-bold text-emerald-600 mt-0.5">
-                  {mcqAttempted} / {mcqQuestions.length} Answered
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold">{isPhase02Exam ? "Scenarios" : codingQuestions.length > 0 ? "Coding Tasks" : "Evaluation"}</p>
-                <p className="text-sm font-bold text-indigo-600 mt-0.5">
-                  {codingAttempted} / {codingQuestions.length} {isPhase02Exam ? "Answered" : "Attempted"}
-                </p>
-              </div>
-            </div>
-
-            {/* Technical Wing — Score Banner */}
-            {isTechnicalExam && technicalGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Technical Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQs</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{technicalGrade.secAMarks} / 30</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.secACorrect} / 15 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B MCQs</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">{technicalGrade.secBMarks} / 20</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.secBCorrect} / 10 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-zinc-900 mt-0.5">{technicalGrade.totalMarks} / 50</p>
-                    <p className="text-[9px] text-zinc-400">{technicalGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${technicalGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{technicalGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40% (20/50)</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* UI & UX Wing — Score Banner */}
-            {isUIUXExam && uiuxGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-purple-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-purple-700 mb-2">
-                  🔒 UI & UX Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{uiuxGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{uiuxGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-purple-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-purple-900 mt-0.5">{uiuxGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{uiuxGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${uiuxGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{uiuxGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Marketing Wing — Score Banner */}
-            {isMarketingExam && marketingGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-blue-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-700 mb-2">
-                  🔒 Marketing Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{marketingGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{marketingGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-blue-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-blue-900 mt-0.5">{marketingGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{marketingGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${marketingGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{marketingGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Data Analytics Wing — Score Banner */}
-            {isAnalyticsExam && analyticsGrade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-emerald-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-700 mb-2">
-                  🔒 Data Analytics Wing Auto-Graded Score (Admin View Only)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Attempted</p>
-                    <p className="text-sm font-bold text-zinc-800 mt-0.5">{analyticsGrade.totalAttempted} / 50</p>
-                  </div>
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Correct Answers</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">{analyticsGrade.totalCorrect} / 50</p>
-                  </div>
-                  <div className="bg-white border border-emerald-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Total Marks</p>
-                    <p className="text-sm font-bold text-emerald-900 mt-0.5">{analyticsGrade.totalMarks} / 100</p>
-                    <p className="text-[9px] text-zinc-400">{analyticsGrade.percentage}%</p>
-                  </div>
-                  <div className={`border p-2 text-center ${analyticsGrade.isPass ? "bg-emerald-500 border-emerald-600 text-white" : "bg-red-500 border-red-600 text-white"}`}>
-                    <p className="text-[9px] uppercase font-bold opacity-80">Status</p>
-                    <p className="text-sm font-bold mt-0.5">{analyticsGrade.isPass ? "PASSED" : "FAILED"}</p>
-                    <p className="text-[9px] opacity-80">Cut-off: 40%</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Training Exam 01 — Auto-Grade Score Banner (Admin Only, NEVER shown to candidate) */}
-            {isTraining01Exam && training01Grade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Auto-Graded Score — Redlix Training Exam 01 (Admin View Only — Not Shown to Candidate)
-                </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQ</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">
-                      {training01Grade.mcq.marksObtained} / 15
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{training01Grade.mcq.correct} correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B Scenario</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">
-                      {training01Grade.scenario.marksObtained} / 10
-                    </p>
-                    <p className="text-[9px] text-zinc-400">MCQ auto-score</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec C Coding</p>
-                    <p className="text-sm font-bold text-indigo-700 mt-0.5">
-                      {training01Grade.coding.marksObtained} / 40
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{training01Grade.coding.attempted}/4 submitted</p>
-                  </div>
-                  <div className="bg-orange-500 border border-orange-600 p-2 text-center">
-                    <p className="text-[9px] text-orange-100 uppercase font-bold">Total Auto</p>
-                    <p className="text-sm font-bold text-white mt-0.5">
-                      {training01Grade.totalAutoMarks} / 65
-                    </p>
-                    <p className="text-[9px] text-orange-200">Manual review needed</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phase 02 — Auto-Grade Score Banner (Admin Only, NEVER shown to candidate) */}
-            {isPhase02Exam && phase02Grade && (
-              <div className="px-5 py-3 border-b border-zinc-200 bg-orange-50/60 shrink-0">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-700 mb-2">
-                  🔒 Auto-Graded Score — Redlix Phase - 02 (Final Phase) (Admin View Only)
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec A MCQ</p>
-                    <p className="text-sm font-bold text-emerald-700 mt-0.5">
-                      {phase02Grade.mcq.marksObtained} / 76
-                    </p>
-                    <p className="text-[9px] text-zinc-400">{phase02Grade.mcq.correct} / 19 correct</p>
-                  </div>
-                  <div className="bg-white border border-orange-200 p-2 text-center">
-                    <p className="text-[9px] text-zinc-500 uppercase font-bold">Sec B Scenarios</p>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">
-                      {phase02Grade.open.attempted} / 8
-                    </p>
-                    <p className="text-[9px] text-zinc-400">Manual review required</p>
-                  </div>
-                  <div className="bg-orange-500 border border-orange-600 p-2 text-center flex flex-col justify-center">
-                    <p className="text-[9px] text-orange-100 uppercase font-bold">Total Auto Marks</p>
-                    <p className="text-sm font-bold text-white mt-0.5">
-                      {phase02Grade.totalAutoMarks} / 156
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {}
-              <div className="space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-widest text-orange-600 border-b border-zinc-200 pb-1 flex items-center justify-between">
-                  <span>Section A: Multiple Choice Questions ({mcqQuestions.length})</span>
-                  <span className="text-[10px] text-zinc-400 normal-case font-normal">{isTraining01Exam ? "(Fixed order — Redlix Training Exam 01)" : isPhase02Exam ? "(Fixed order — Redlix Phase - 02)" : "(Shuffled in student's view)"}</span>
-                </h4>
-                <div className="space-y-3">
-                  {mcqQuestions.map((q) => {
-                    const selectedLetter = candidate.answers?.[q.id];
-                    const attempted = isQuestionAttempted(q);
-
-                    return (
-                      <div key={q.id} className="p-3.5 border border-zinc-200 bg-white space-y-3">
-                        <div className="flex justify-between items-start gap-4">
-                          <h5 className="text-xs font-bold text-zinc-800 leading-relaxed">
-                            Question {q.number}: <span className="font-normal text-zinc-650 whitespace-pre-wrap">{q.questionText}</span>
-                          </h5>
-                          <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 border ${
-                            attempted 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-250" 
-                              : "bg-red-50 text-red-700 border-red-250"
-                          }`}>
-                            {attempted ? "Attempted" : "Not Attempted"}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-3">
-                          {q.options?.map((opt) => {
-                            const letter = opt.substring(0, 1);
-                            const isSelected = selectedLetter === letter;
-                            return (
-                              <div 
-                                key={opt}
-                                className={`p-2 border text-xs flex items-center gap-2 ${
-                                  isSelected 
-                                    ? "bg-orange-50/30 border-orange-400 font-semibold text-orange-950" 
-                                    : "bg-zinc-50 border-zinc-200 text-zinc-600"
-                                }`}
-                              >
-                                <span className={`w-4 h-4 flex items-center justify-center text-[9px] font-bold border rounded-full ${
-                                  isSelected 
-                                    ? "bg-orange-500 border-orange-500 text-white" 
-                                    : "border-zinc-300 text-zinc-400 bg-white"
-                                }`}>
-                                  {letter}
-                                </span>
-                                <span className="font-sans leading-none">{opt.substring(3)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {}
-              <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 border-b border-zinc-200 pb-1 flex items-center justify-between">
-                  <span>Section B: {codingQuestions.some(q => q.type === "open") ? "Scenario-Based / Open-Ended" : "Coding Challenges"} ({codingQuestions.length})</span>
-                  <span className="text-[10px] text-zinc-400 normal-case font-normal">(Shuffled in student's view)</span>
-                </h4>
-                <div className="space-y-4">
-                  {codingQuestions.map((q) => {
-                    const solutionCode = candidate.answers?.[q.id];
-                    const attempted = isQuestionAttempted(q);
-
-                    return (
-                      <div key={q.id} className="p-3.5 border border-zinc-200 bg-white space-y-3">
-                        <div className="flex justify-between items-start gap-4">
-                          <h5 className="text-xs font-bold text-zinc-800 leading-relaxed">
-                            {q.type === "open" ? "Open-Ended Question" : "Coding Challenge"} {q.number}: <span className="font-normal text-zinc-650">{q.questionText.split("\n")[0]}</span>
-                          </h5>
-                          <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 border ${
-                            attempted 
-                              ? "bg-indigo-50 text-indigo-700 border-indigo-250" 
-                              : "bg-red-50 text-red-700 border-red-250"
-                          }`}>
-                            {attempted ? "Attempted" : "Not Attempted"}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-450 font-mono">Candidate Submission</p>
-                          {attempted && solutionCode ? (
-                            <pre className="bg-zinc-950 text-zinc-300 font-mono text-[11px] p-3.5 border border-zinc-800 overflow-x-auto whitespace-pre rounded-none max-h-72">
-                              {solutionCode}
-                            </pre>
-                          ) : (
-                            <div className="p-3 bg-zinc-50 border border-zinc-200 text-zinc-400 text-xs italic font-sans">
-                              No solution submitted for this challenge.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {}
-            <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-end shrink-0">
-              <button
-                onClick={() => setSelectedCandidateForAnswers(null)}
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider rounded-none cursor-pointer border-none transition-colors"
-              >
-                Close View
-              </button>
             </div>
           </div>
         </div>

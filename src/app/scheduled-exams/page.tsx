@@ -20,6 +20,7 @@ interface Exam {
 }
 
 import { encodeExamId } from "@/utils/secureId";
+import { isExamDatePassed, isExamRegistrationClosed } from "@/utils/examDates";
 
 type TabFilter = "all" | "upcoming" | "past";
 
@@ -68,25 +69,8 @@ export default function ScheduledExams() {
     fetchExams();
   }, []);
 
-  const isUpcomingExam = (examDateStr: string): boolean => {
-    if (!examDateStr) return true;
-    try {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const datePart = examDateStr.split("·")[0].split(" - ")[0].trim();
-      const examDate = new Date(datePart);
-      if (!isNaN(examDate.getTime())) {
-        examDate.setHours(23, 59, 59, 999);
-        return examDate.getTime() >= now.getTime();
-      }
-    } catch {
-      return true;
-    }
-    return true;
-  };
-
-  const upcomingCount = exams.filter((e) => isUpcomingExam(e.date)).length;
-  const pastCount = exams.filter((e) => !isUpcomingExam(e.date)).length;
+  const upcomingCount = exams.filter((e) => !isExamDatePassed(e.date, e.time)).length;
+  const pastCount = exams.filter((e) => isExamDatePassed(e.date, e.time)).length;
 
   const filteredExams = exams.filter((e) => {
     const matchesSearch =
@@ -96,7 +80,7 @@ export default function ScheduledExams() {
 
     if (!matchesSearch) return false;
 
-    const isUpcoming = isUpcomingExam(e.date);
+    const isUpcoming = !isExamDatePassed(e.date, e.time);
     if (activeTab === "upcoming") return isUpcoming;
     if (activeTab === "past") return !isUpcoming;
     return true;
@@ -227,11 +211,11 @@ export default function ScheduledExams() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredExams.map((exam) => {
-              const isUpcoming = isUpcomingExam(exam.date);
+              const isClosed = isExamRegistrationClosed(exam);
               return (
                 <div
                   key={exam.id}
-                  className="bg-white border border-zinc-200/90 rounded-md shadow-xs hover:shadow-md hover:border-[#E61E32]/25 transition-all duration-200 overflow-hidden flex flex-col"
+                  className="bg-white border border-zinc-200/90 rounded-md overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col group"
                 >
                   {/* Cover Image (1200x1200px 1:1 Square Frame) */}
                   <div className="w-full aspect-square relative overflow-hidden bg-zinc-900 shrink-0">
@@ -239,6 +223,10 @@ export default function ScheduledExams() {
                       src={
                         (exam as any).company_logo && (exam as any).company_logo.startsWith("http")
                           ? (exam as any).company_logo
+                          : exam.name.toLowerCase().includes("business") || exam.name.toLowerCase().includes("bussiness")
+                          ? "https://ik.imagekit.io/dypkhqxip/bussiness%20analysis.png"
+                          : exam.name.toLowerCase().includes("sales")
+                          ? "https://ik.imagekit.io/dypkhqxip/Sales%20and%20Marketing.png"
                           : exam.name.toLowerCase().includes("technical")
                           ? "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png"
                           : exam.name.toLowerCase().includes("marketing")
@@ -255,21 +243,21 @@ export default function ScheduledExams() {
                         (e.target as HTMLImageElement).src = "https://ik.imagekit.io/dypkhqxip/technical%20Wing.png";
                       }}
                     />
-                    <div className="absolute top-3 left-3 flex items-center gap-2">
-                      <span className="text-[11px] font-semibold bg-white/95 text-zinc-800 px-2.5 py-1 rounded-md border border-zinc-200/90 shadow-xs">
+                    {/* Transparent Glass Badges with Subtle Rounded Edges */}
+                    <div className="absolute top-3 left-3">
+                      <span className="text-[11px] font-semibold bg-white/90 text-zinc-900 px-2.5 py-1 rounded-md border border-white/70 shadow-xs backdrop-blur-md select-none">
                         {exam.company_name}
                       </span>
                     </div>
 
                     <div className="absolute top-3 right-3">
-                      {isUpcoming ? (
-                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded-md shadow-xs tracking-wider uppercase flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          Upcoming
+                      {!isClosed ? (
+                        <span className="text-[11px] font-semibold bg-white/90 text-zinc-900 px-2.5 py-1 rounded-md border border-white/70 shadow-xs backdrop-blur-md select-none">
+                          Open
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold bg-zinc-800/90 text-zinc-200 px-2.5 py-1 rounded-md shadow-xs tracking-wider uppercase">
-                          Past Exam
+                        <span className="text-[11px] font-semibold bg-zinc-900/80 text-zinc-300 px-2.5 py-1 rounded-md border border-white/10 shadow-xs backdrop-blur-md select-none">
+                          Closed
                         </span>
                       )}
                     </div>
