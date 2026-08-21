@@ -89,6 +89,10 @@ export async function POST(req: Request) {
       for (let i = 0; i < testCases.length; i++) {
         const tc = testCases[i];
         
+        // Clean up input for Java/C/C++ Standard I/O (e.g. "12, 30" -> "12  30")
+        // This allows Scanner.nextInt() to work without custom delimiters.
+        let cpStdin = String(tc.input || "").replace(/[,\[\]]/g, " ");
+
         const response = await fetch(PISTON_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,7 +100,7 @@ export async function POST(req: Request) {
             language: pistonLang,
             version,
             files: [{ content: wrappedCode }],
-            stdin: tc.input,
+            stdin: cpStdin,
             compile_timeout: 10000,
             run_timeout: 3000
           })
