@@ -69,9 +69,9 @@ export async function POST(req: Request) {
         const mapped = Array.isArray(parsed) ? parsed.map((r: any) => ({
           caseIndex: r.c,
           status: r.s === 1 ? "pass" : "fail",
+          error: r.err,
           expected: r.e,
-          actual: r.a,
-          error: r.err
+          actual: r.a
         })) : parsed;
         return NextResponse.json({ success: true, data: mapped });
       } catch (e) {

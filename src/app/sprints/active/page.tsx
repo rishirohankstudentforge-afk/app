@@ -698,8 +698,8 @@ function SprintActiveContent() {
                         <div key={i} className="mb-4">
                           <div className="font-bold mb-1">Case {res.caseIndex}: <span className={res.status === "pass" ? "text-green-600" : "text-red-600"}>{res.status}</span></div>
                           {res.error ? <div className="text-red-600 whitespace-pre-wrap">{res.error}</div> : <>
-                            <div className="whitespace-pre overflow-x-auto pb-1">Expected: {res.expected}</div>
-                            <div className="whitespace-pre overflow-x-auto pb-1">Actual: {res.actual}</div>
+                            {res.expected && <div className="whitespace-pre overflow-x-auto pb-1">Expected: {res.expected}</div>}
+                            {res.actual && <div className="whitespace-pre overflow-x-auto pb-1">Actual: {res.actual}</div>}
                           </>}
                         </div>
                       ))

@@ -42,12 +42,14 @@ def _run_tests():
             except:
                 passed = (actual_json == expected_str) or ('"' + actual_json + '"' == expected_str) or (actual_json == '"' + expected_str + '"')
             
-            results.append({
+            res_obj = {
                 "c": tc['caseIndex'],
-                "s": 1 if passed else 0,
-                "e": expected_str,
-                "a": actual_json
-            })
+                "s": 1 if passed else 0
+            }
+            if not passed:
+                res_obj["e"] = expected_str
+                res_obj["a"] = actual_json
+            results.append(res_obj)
         except Exception as e:
             results.append({
                 "c": tc['caseIndex'],
@@ -85,12 +87,15 @@ for (const tc of testCases) {
             passed = (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
         }
         
-        results.push({
+        const resObj = {
             c: tc.caseIndex,
-            s: passed ? 1 : 0,
-            e: tc.expectedOutput,
-            a: actualJson
-        });
+            s: passed ? 1 : 0
+        };
+        if (!passed) {
+            resObj.e = tc.expectedOutput;
+            resObj.a = actualJson;
+        }
+        results.push(resObj);
     } catch(err) {
         results.push({
             c: tc.caseIndex,
@@ -148,12 +153,14 @@ def _run_tests():
             except:
                 passed = (actual_json == expected_str)
             
-            results.append({
+            res_obj = {
                 "c": tc['caseIndex'],
-                "s": 1 if passed else 0,
-                "e": expected_str,
-                "a": actual_json
-            })
+                "s": 1 if passed else 0
+            }
+            if not passed:
+                res_obj["e"] = expected_str
+                res_obj["a"] = actual_json
+            results.append(res_obj)
             
             conn.close()
         except Exception as e:
