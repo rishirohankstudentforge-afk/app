@@ -47,14 +47,14 @@ def _run_tests():
                 "s": 1 if passed else 0
             }
             if not passed:
-                res_obj["e"] = expected_str
-                res_obj["a"] = actual_json
+                res_obj["e"] = str(expected_str)[:30]
+                res_obj["a"] = str(actual_json)[:30]
             results.append(res_obj)
         except Exception as e:
             results.append({
                 "c": tc['caseIndex'],
                 "s": 0,
-                "err": str(e)
+                "err": str(e)[:20]
             })
             
     print(json.dumps(results))
@@ -65,47 +65,62 @@ if __name__ == '__main__':
   }
 
   if (language === "javascript" || language === "typescript") {
-    return `// @ts-nocheck
-// --- USER CODE START ---
-${userCode}
-// --- USER CODE END ---
-
-const testCases = JSON.parse(String.raw\`${testCasesJson}\`);
-const results = [];
-
-for (const tc of testCases) {
+    return `
+function _runTests() {
+    let results = [];
+    let testCases;
     try {
-        const args = eval("[" + tc.input + "]");
-        const actual = solution(...args);
-        const actualJson = JSON.stringify(actual);
-        
-        let passed = false;
-        try {
-            const normalizedExpected = JSON.stringify(JSON.parse(tc.expectedOutput));
-            passed = (actualJson === normalizedExpected) || (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
-        } catch(e) {
-            passed = (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
-        }
-        
-        const resObj = {
-            c: tc.caseIndex,
-            s: passed ? 1 : 0
-        };
-        if (!passed) {
-            resObj.e = tc.expectedOutput;
-            resObj.a = actualJson;
-        }
-        results.push(resObj);
-    } catch(err) {
-        results.push({
-            c: tc.caseIndex,
-            s: 0,
-            err: err.toString()
-        });
+        testCases = JSON.parse(\`${testCasesJson}\`);
+    } catch(e) {
+        console.log(JSON.stringify([{c: 1, s: 0, err: "Parse error"}]));
+        return;
     }
-}
 
-console.log(JSON.stringify(results));
+    let solution = undefined;
+    try {
+        eval(\`${userCode}\`);
+    } catch(err) {
+        console.log(JSON.stringify([{c: 1, s: 0, err: "Syntax Error: " + err.toString().substring(0, 40)}]));
+        return;
+    }
+
+    for (let i = 0; i < testCases.length; i++) {
+        const tc = testCases[i];
+        try {
+            let args = [];
+            eval("args = [" + tc.input + "];");
+            let actual = solution.apply(null, args);
+            
+            let actualJson = JSON.stringify(actual);
+            let passed = false;
+            try {
+                let vActual = JSON.parse(actualJson);
+                let vExpected = JSON.parse(tc.expectedOutput);
+                passed = (JSON.stringify(vActual) === JSON.stringify(vExpected));
+            } catch(e) {
+                passed = (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
+            }
+            
+            const resObj = {
+                c: tc.caseIndex,
+                s: passed ? 1 : 0
+            };
+            if (!passed) {
+                resObj.e = tc.expectedOutput ? tc.expectedOutput.substring(0, 30) : "";
+                resObj.a = actualJson ? actualJson.substring(0, 30) : "";
+            }
+            results.push(resObj);
+        } catch(err) {
+            results.push({
+                c: tc.caseIndex,
+                s: 0,
+                err: err.toString().substring(0, 20)
+            });
+        }
+    }
+    console.log(JSON.stringify(results));
+}
+_runTests();
 `;
   }
 
