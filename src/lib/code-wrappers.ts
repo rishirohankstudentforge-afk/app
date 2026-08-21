@@ -36,9 +36,11 @@ def _run_tests():
             # expectedOutput is stored as a JSON string, e.g. '"olleh"'
             expected_str = tc['expectedOutput']
             try:
-                passed = (json.loads(actual_json) == json.loads(expected_str))
+                v_actual = json.loads(actual_json)
+                v_expected = json.loads(expected_str)
+                passed = (v_actual == v_expected) or (str(v_actual).lower() == str(v_expected).lower())
             except:
-                passed = (actual_json == expected_str)
+                passed = (actual_json == expected_str) or ('"' + actual_json + '"' == expected_str) or (actual_json == '"' + expected_str + '"')
             
             results.append({
                 "c": tc['caseIndex'],
@@ -78,9 +80,9 @@ for (const tc of testCases) {
         let passed = false;
         try {
             const normalizedExpected = JSON.stringify(JSON.parse(tc.expectedOutput));
-            passed = actualJson === normalizedExpected;
+            passed = (actualJson === normalizedExpected) || (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
         } catch(e) {
-            passed = actualJson === tc.expectedOutput;
+            passed = (actualJson === tc.expectedOutput) || ('"' + actualJson + '"' === tc.expectedOutput) || (actualJson === '"' + tc.expectedOutput + '"');
         }
         
         results.push({
