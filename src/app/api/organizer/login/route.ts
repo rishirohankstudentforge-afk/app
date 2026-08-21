@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     const res = NextResponse.json({ success: true, redirectUrl: "/admin/hackathons" });
-    res.cookies.set("organizer_logged_in", "true", { path: "/", maxAge: 86400 * 7 });
-    res.cookies.set("organizer_email", cleanEmail, { path: "/", maxAge: 86400 * 7 });
+    res.cookies.set("organizer_logged_in", "true", { path: "/", maxAge: 86400 * 7, httpOnly: false });
+    res.cookies.set("organizer_email", cleanEmail, { path: "/", maxAge: 86400 * 7, httpOnly: false });
     return res;
   } catch (error: any) {
     console.error("POST /api/organizer/login error:", error);
