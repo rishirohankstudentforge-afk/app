@@ -283,16 +283,25 @@ function SprintActiveContent() {
           }
         }
       };
+
+      const handleVisibilityChange = () => {
+        if (document.hidden && !isLocked && !isSubmitted) {
+          issueWarning("Candidate left the active exam tab (Tab Switch).");
+        }
+      };
+
       document.addEventListener("fullscreenchange", handleFsChange);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
       return () => {
         document.removeEventListener("fullscreenchange", handleFsChange);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
         if (fsTimeoutRef.current) clearTimeout(fsTimeoutRef.current);
       };
     }
-  }, [isLocked, isSubmitted, sprint, participantId]);
+  }, [isLocked, isSubmitted, sprint?.id, participantId]);
 
   useEffect(() => {
-    if (isLocked || isSubmitted || !sprint || !participantId) return;
+    if (isLocked || isSubmitted || !sprint?.id || !participantId) return;
     let stream: MediaStream | null = null;
 
     const startCamera = async () => {
@@ -310,7 +319,7 @@ function SprintActiveContent() {
         stream.getTracks().forEach(t => t.stop());
       }
     };
-  }, [isLocked, isSubmitted, sprint, participantId]);
+  }, [isLocked, isSubmitted, sprint?.id, participantId]);
 
   // Auto-select language based on question title
   useEffect(() => {
