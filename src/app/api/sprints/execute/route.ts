@@ -42,7 +42,9 @@ export async function POST(req: Request) {
           version: pistonLang === "typescript" || language === "sql" ? "*" : version,
           files: [{ content: wrappedCode }],
           compile_timeout: 10000,
-          run_timeout: 3000
+          run_timeout: 3000,
+          compile_memory_limit: -1,
+          run_memory_limit: -1
         })
       });
 
