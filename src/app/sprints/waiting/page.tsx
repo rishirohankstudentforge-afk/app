@@ -206,7 +206,7 @@ function SprintWaitingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FBFBFB] flex flex-col font-sans text-zinc-900 relative overflow-hidden">
+    <div className="h-screen bg-[#FBFBFB] flex flex-col font-sans text-zinc-900 relative overflow-hidden">
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes floatUp {
@@ -247,10 +247,10 @@ function SprintWaitingContent() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-[1300px] mx-auto p-6 md:p-10 flex flex-col lg:flex-row gap-16 relative z-10 items-center justify-center">
+      <main className="flex-1 w-full max-w-[1300px] mx-auto p-6 md:p-8 flex flex-col lg:flex-row gap-10 relative z-10 items-center justify-center overflow-hidden">
         
         {/* Left Section */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full overflow-hidden">
           
           {/* Animated Graphic */}
           <div className="relative w-[220px] h-[220px] mb-12 flex items-center justify-center">
@@ -268,7 +268,7 @@ function SprintWaitingContent() {
             </div>
           </div>
 
-          <div className="text-center space-y-5 max-w-lg mb-12">
+          <div className="text-center space-y-3 max-w-lg mb-8">
             <h1 className="text-4xl md:text-[42px] font-light text-zinc-800 tracking-tight leading-tight">
               Waiting for Organizer <br/>
               <span className="text-[#E61E32] font-light">to Start the Sprint</span>
@@ -289,7 +289,7 @@ function SprintWaitingContent() {
           </div>
 
           {/* Warning Box */}
-          <div className="bg-white border border-zinc-100 rounded-xl px-6 py-4 flex items-center gap-4 w-full max-w-md shadow-sm mb-16">
+          <div className="bg-white border border-zinc-100 rounded-xl px-6 py-4 flex items-center gap-4 w-full max-w-md shadow-sm mb-8">
             <div className="w-6 h-6 rounded-full border-[1.5px] border-[#E61E32] flex items-center justify-center shrink-0">
               <Info className="w-3.5 h-3.5 text-[#E61E32]" />
             </div>
@@ -343,7 +343,7 @@ function SprintWaitingContent() {
         </div>
 
         {/* Right Section */}
-        <div className="w-full lg:w-[420px] flex flex-col gap-5 shrink-0 pt-8 lg:pt-0">
+        <div className="w-full lg:w-[420px] flex flex-col gap-4 shrink-0 pt-4 lg:pt-0 h-full overflow-hidden">
           
           {/* Sprint Details */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
@@ -384,7 +384,7 @@ function SprintWaitingContent() {
           </div>
 
           {/* Lobby Feed */}
-          <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col min-h-[250px] max-h-[350px]">
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col flex-1 min-h-0">
             <div className="border-b border-zinc-100 pb-4 mb-4 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <Users className="w-[18px] h-[18px] text-zinc-700 stroke-[2]" />
