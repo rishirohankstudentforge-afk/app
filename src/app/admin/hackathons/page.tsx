@@ -291,6 +291,28 @@ export default function AdminHackathonsPage() {
     }
   };
 
+  const handleTogglePause = async () => {
+    if (!createdSprint) return;
+    const action = createdSprint.isPaused ? "RESUME" : "PAUSE";
+    if (!confirm(`Are you sure you want to ${action} this sprint?`)) return;
+    try {
+      const res = await fetch(`/api/sprints/${createdSprint.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPaused: !createdSprint.isPaused })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCreatedSprint(data.data);
+      } else {
+        alert(`Failed to ${action.toLowerCase()} sprint: ` + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(`Error ${action.toLowerCase()}ing sprint.`);
+    }
+  };
+
   const handleStopSprint = async () => {
     if (!createdSprint) return;
     if (!confirm("Are you sure you want to STOP this sprint? Active participants will be kicked to the waiting room.")) return;
@@ -1511,10 +1533,16 @@ export default function AdminHackathonsPage() {
                                 Live Analytics
                               </button>
                               <button
+                                onClick={handleTogglePause}
+                                className={`flex-1 text-white text-[10px] font-black py-3 rounded-xl shadow-xs transition-all cursor-pointer text-center uppercase tracking-wider ${createdSprint.isPaused ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-500 hover:bg-amber-600"}`}
+                              >
+                                {createdSprint.isPaused ? "Resume Sprint" : "Pause Sprint"}
+                              </button>
+                              <button
                                 onClick={handleStopSprint}
                                 className="flex-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[10px] font-black py-3 rounded-xl shadow-xs transition-all cursor-pointer text-center uppercase tracking-wider"
                               >
-                                Stop Sprint
+                                Stop
                               </button>
                             </div>
                           </div>

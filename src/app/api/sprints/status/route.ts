@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
         title: sprint.title,
         description: sprint.description,
         isStarted: sprint.isStarted,
+        isPaused: sprint.isPaused,
         joinCode: sprint.joinCode,
         logoUrl: sprint.logoUrl,
         location: sprint.location,

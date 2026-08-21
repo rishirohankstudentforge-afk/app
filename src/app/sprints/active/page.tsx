@@ -63,6 +63,7 @@ function SprintActiveContent() {
 
   const [timeLeftStr, setTimeLeftStr] = useState("00:00");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Participant Data
   const [participantId, setParticipantId] = useState("");
@@ -184,16 +185,22 @@ function SprintActiveContent() {
     return () => clearInterval(poll);
   }, [sprint, isSubmitted, participantId, isLocked]);
 
-  // Sprint Stop Poller (Kicks to waiting room if organizer stops the sprint)
+  // Sprint Status Poller
   useEffect(() => {
     if (isSubmitted || !code) return;
     const poll = setInterval(async () => {
       try {
         const res = await fetch(`/api/sprints/status?code=${code}`);
         const data = await res.json();
-        if (data.success && data.data && !data.data.isStarted) {
-          alert("The sprint has been stopped by the organizer.");
-          router.push(`/sprints/waiting?code=${code}`);
+        if (data.success && data.data) {
+          if (!data.data.isStarted) {
+            alert("The sprint has been stopped by the organizer.");
+            router.push(`/sprints/waiting?code=${code}`);
+          } else {
+            setIsPaused(data.data.isPaused || false);
+            // Sync updated sprint data in case endDate was extended after pause
+            setSprint(prev => prev ? { ...prev, endDate: data.data.endDate } : null);
+          }
         }
       } catch (e) {}
     }, 5000);
@@ -202,6 +209,10 @@ function SprintActiveContent() {
 
   useEffect(() => {
     if (!sprint || !sprint.isStarted || isLocked || isSubmitted) return;
+    if (isPaused) {
+      setTimeLeftStr("PAUSED");
+      return;
+    }
     const end = sprint.endDate ? new Date(sprint.endDate).getTime() : Date.now() + 180 * 60000;
     const timer = setInterval(() => {
       const diff = end - Date.now();
@@ -217,7 +228,7 @@ function SprintActiveContent() {
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [sprint, isLocked, isSubmitted]);
+  }, [sprint, isLocked, isSubmitted, isPaused]);
 
   // Redundant fullscreen listener removed
 
@@ -493,6 +504,18 @@ function SprintActiveContent() {
               <button onClick={() => setShowWarningOverlay(false)} className="mt-6 w-full bg-red-600 text-white font-black py-3 rounded-xl">Resume</button>
             )}
           </div>
+        </div>
+      )}
+
+      {isPaused && (
+        <div className="fixed inset-0 bg-zinc-950/95 z-[150] flex flex-col items-center justify-center p-6 backdrop-blur-xl">
+          <div className="w-20 h-20 bg-amber-500/20 border border-amber-500/50 rounded-full flex items-center justify-center animate-pulse mb-6">
+             <div className="w-8 h-8 bg-amber-500 rounded-sm" />
+          </div>
+          <h2 className="text-4xl font-black text-white uppercase tracking-widest mb-4">Sprint Paused</h2>
+          <p className="text-zinc-400 text-center max-w-lg text-sm">
+            The organizer has paused the sprint. Don't worry, your progress is saved and your countdown timer has been stopped. Please wait for the organizer to resume the session.
+          </p>
         </div>
       )}
 

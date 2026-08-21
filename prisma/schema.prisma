@@ -129,6 +129,8 @@ model Hackathon {
   logoUrl           String?     @db.Text
   location          String?
   isStarted         Boolean     @default(false)
+  isPaused          Boolean     @default(false)
+  pausedAt          DateTime?
   parentHackathonId String?     // If this is a Sprint inside a Hackathon
   parentHackathon   Hackathon?  @relation("HackathonSprints", fields: [parentHackathonId], references: [id])
   sprints           Hackathon[] @relation("HackathonSprints")

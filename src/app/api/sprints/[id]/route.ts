@@ -30,7 +30,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { isStarted, title, description, questions } = body;
+    const { isStarted, isPaused, title, description, questions } = body;
 
     const sprint = await prisma.hackathon.findUnique({ where: { id } });
     if (!sprint) {
@@ -47,6 +47,21 @@ export async function PUT(
         const durationMs = sprint.endDate.getTime() - sprint.startDate.getTime();
         updateData.startDate = new Date();
         updateData.endDate = new Date(Date.now() + durationMs);
+      }
+    }
+    
+    if (isPaused !== undefined) {
+      const pausing = Boolean(isPaused);
+      if (pausing && !sprint.isPaused) {
+        updateData.isPaused = true;
+        updateData.pausedAt = new Date();
+      } else if (!pausing && sprint.isPaused) {
+        updateData.isPaused = false;
+        updateData.pausedAt = null;
+        if (sprint.pausedAt) {
+          const pauseDuration = Date.now() - sprint.pausedAt.getTime();
+          updateData.endDate = new Date(sprint.endDate.getTime() + pauseDuration);
+        }
       }
     }
     
