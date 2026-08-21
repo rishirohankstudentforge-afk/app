@@ -668,7 +668,7 @@ function SprintActiveContent() {
                   theme="light"
                   value={codeDrafts[draftKey(activeCodeQIndex, selectedLang.id)] || ""}
                   onChange={(val) => setCodeDrafts({ ...codeDrafts, [draftKey(activeCodeQIndex, selectedLang.id)]: val || "" })}
-                  options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "on" }}
+                  options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: "off" }}
                 />
               </div>
 
@@ -690,14 +690,17 @@ function SprintActiveContent() {
                       {compiling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />} Run Tests
                     </button>
                   </div>
-                  <div className="flex-1 p-4 overflow-y-auto text-zinc-800 font-mono text-[11px]">
+                  <div className="flex-1 p-4 overflow-auto text-zinc-800 font-mono text-[11px]">
                     {!compileResults[activeCodeQIndex] ? (
                       <div className="text-zinc-500 flex justify-center mt-4">Run tests to evaluate solution.</div>
                     ) : (
                       compileResults[activeCodeQIndex].map((res, i) => (
                         <div key={i} className="mb-4">
                           <div className="font-bold mb-1">Case {res.caseIndex}: <span className={res.status === "pass" ? "text-green-600" : "text-red-600"}>{res.status}</span></div>
-                          {res.error ? <div className="text-red-600">{res.error}</div> : <><div>Expected: {res.expected}</div><div>Actual: {res.actual}</div></>}
+                          {res.error ? <div className="text-red-600 whitespace-pre-wrap">{res.error}</div> : <>
+                            <div className="whitespace-pre overflow-x-auto pb-1">Expected: {res.expected}</div>
+                            <div className="whitespace-pre overflow-x-auto pb-1">Actual: {res.actual}</div>
+                          </>}
                         </div>
                       ))
                     )}
