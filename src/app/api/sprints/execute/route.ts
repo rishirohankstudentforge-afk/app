@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { wrapCodeForPiston } from "@/lib/code-wrappers";
-import { exec } from "child_process";
-import fs from "fs";
-import path from "path";
-import os from "os";
+
+const VERSIONS: Record<string, string> = {
+  python: "3.10.0",
+  javascript: "18.15.0",
+  typescript: "5.0.3",
+  java: "15.0.2",
+  c: "10.2.0",
+  cpp: "10.2.0",
+  sql: "3.36.0"
+};
+
+// The public API (emkc.org) is now whitelist-only. 
+// You MUST set this to your own self-hosted Piston URL in Vercel.
+const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
 
 export async function POST(req: Request) {
   try {
@@ -14,46 +24,98 @@ export async function POST(req: Request) {
     }
 
     const wrappedCode = wrapCodeForPiston(language, code, testCases);
-    
-    const fileId = Math.random().toString(36).substring(7);
-    let ext = "txt";
-    let cmd = "";
-    
-    if (language === "python") { ext = "py"; cmd = "python"; }
-    else if (language === "javascript" || language === "typescript") { ext = "js"; cmd = "node"; }
-    else if (language === "java") { ext = "java"; cmd = "java"; }
-    else if (language === "cpp") { ext = "cpp"; cmd = "cpp"; }
-    else if (language === "sql") { ext = "py"; cmd = "python"; }
+    const version = VERSIONS[language] || "*";
+    let pistonLang = language;
+    if (language === "sql") pistonLang = "sqlite3";
 
-    const tmpFile = path.join(os.tmpdir(), "exec_" + fileId + "." + ext);
-    fs.writeFileSync(tmpFile, wrappedCode);
-
-    return new Promise((resolve) => {
-      // Execute local process with 5 second timeout
-      exec(cmd + ' "' + tmpFile + '"', { timeout: 5000 }, (error, stdout, stderr) => {
-        try { fs.unlinkSync(tmpFile); } catch (e) {}
-
-        if (error && error.killed) {
-           return resolve(NextResponse.json({
-            success: true,
-            data: [{ caseIndex: 1, status: "fail", error: "Time Limit Exceeded (Infinite Loop or Code Too Slow)" }]
-          }));
-        }
-
-        const out = stdout ? stdout.trim() : "";
-        
-        try {
-          const parsed = JSON.parse(out);
-          resolve(NextResponse.json({ success: true, data: parsed }));
-        } catch (e) {
-          const fallback = stderr ? stderr : out;
-          resolve(NextResponse.json({
-            success: true,
-            data: [{ caseIndex: 1, status: "fail", error: "Execution Error:\\n" + fallback }]
-          }));
-        }
+    // For Python, JS, SQL, TS we run the wrapper once
+    if (["python", "javascript", "typescript", "sql"].includes(language)) {
+      const response = await fetch(PISTON_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: pistonLang,
+          version,
+          files: [{ content: wrappedCode }],
+          compile_timeout: 10000,
+          run_timeout: 5000,
+          compile_memory_limit: -1,
+          run_memory_limit: -1
+        })
       });
-    });
+
+      const resData = await response.json();
+      if (resData.compile && resData.compile.code !== 0) {
+        return NextResponse.json({
+          success: true,
+          data: [{ caseIndex: 1, status: "fail", error: "Compile Error:\\n" + resData.compile.output }]
+        });
+      }
+      
+      const out = resData.run?.stdout?.trim() || "";
+      const err = resData.run?.stderr?.trim() || "";
+
+      if (resData.run?.code !== 0 && !out) {
+        return NextResponse.json({
+          success: true,
+          data: [{ caseIndex: 1, status: "fail", error: "Execution Error:\\n" + err }]
+        });
+      }
+
+      try {
+        return NextResponse.json({ success: true, data: JSON.parse(out) });
+      } catch (e) {
+        return NextResponse.json({
+          success: true,
+          data: [{ caseIndex: 1, status: "fail", error: "Execution Error:\\n" + (err || out) }]
+        });
+      }
+    } 
+    // For Java, C, and C++ we use Standard I/O loop
+    else if (["java", "cpp", "c"].includes(language)) {
+      const results = [];
+      for (let i = 0; i < testCases.length; i++) {
+        const tc = testCases[i];
+        
+        const response = await fetch(PISTON_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            language: pistonLang,
+            version,
+            files: [{ content: wrappedCode }],
+            stdin: tc.input,
+            compile_timeout: 10000,
+            run_timeout: 5000,
+            compile_memory_limit: -1,
+            run_memory_limit: -1
+          })
+        });
+
+        const resData = await response.json();
+        
+        if (resData.compile && resData.compile.code !== 0) {
+          results.push({ caseIndex: i + 1, status: "fail", error: "Compile Error:\\n" + resData.compile.output });
+          continue;
+        }
+
+        const out = resData.run?.stdout?.trim() || "";
+        const err = resData.run?.stderr?.trim() || "";
+
+        if (resData.run?.code !== 0 && !out) {
+           results.push({ caseIndex: i + 1, status: "fail", error: "Execution Error:\\n" + err });
+        } else {
+           const actual = out;
+           const expected = String(tc.expectedOutput).trim();
+           if (actual === expected || actual === '"' + expected + '"' || '"' + actual + '"' === expected) {
+             results.push({ caseIndex: i + 1, status: "pass", expected, actual });
+           } else {
+             results.push({ caseIndex: i + 1, status: "fail", expected, actual });
+           }
+        }
+      }
+      return NextResponse.json({ success: true, data: results });
+    }
 
   } catch (error: any) {
     console.error("Execute API Error:", error);
