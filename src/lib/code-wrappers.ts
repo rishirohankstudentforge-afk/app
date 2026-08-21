@@ -25,10 +25,15 @@ def _run_tests():
     results = []
     for tc in test_cases:
         try:
-            # We wrap the input in a tuple to unpack it as arguments
             eval_str = "(" + tc['input'] + ",)"
             args = eval(eval_str)
-            actual = solution(*args)
+            sig = inspect.signature(solution)
+            if len(args) == 1:
+                actual = solution(args[0])
+            elif len(sig.parameters) == 1:
+                actual = solution(args)
+            else:
+                actual = solution(*args)
             
             # If actual is already a string, json.dumps adds quotes, which matches our JSON expected format
             actual_json = json.dumps(actual)
@@ -89,7 +94,14 @@ function _runTests() {
         try {
             let args = [];
             eval("args = [" + tc.input + "];");
-            let actual = solution.apply(null, args);
+            let actual;
+            if (args.length === 1) {
+                actual = solution(args[0]);
+            } else if (solution.length === 1) {
+                actual = solution(args);
+            } else {
+                actual = solution.apply(null, args);
+            }
             
             let actualJson = JSON.stringify(actual);
             let passed = false;
