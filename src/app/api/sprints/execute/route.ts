@@ -91,9 +91,12 @@ export async function POST(req: Request) {
         
         // For Java, C, and C++, inputs are usually space-separated and without brackets/commas/quotes in standard CP platforms.
         // We strip commas, square brackets, and double quotes to make it easier for them to use Scanner / cin.
-        const sanitizedStdin = typeof tc.input === 'string'
-          ? tc.input.replace(/[,\[\]"]/g, ' ')
-          : tc.input;
+        let sanitizedStdin = tc.cppInput;
+        if (!sanitizedStdin) {
+          sanitizedStdin = typeof tc.input === 'string'
+            ? tc.input.replace(/[,\[\]"]/g, ' ')
+            : tc.input;
+        }
 
         const response = await fetch(PISTON_URL, {
           method: "POST",

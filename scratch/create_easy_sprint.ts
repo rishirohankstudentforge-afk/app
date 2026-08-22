@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
@@ -17,26 +18,30 @@ async function main() {
     const arr = Array.from({length: 5}, () => Math.floor(Math.random()*10)+1);
     const sorted = [...arr].sort((a,b) => b-a);
     const expected = (sorted[0]-1) * (sorted[1]-1);
-    maxProductTC.push({ input: `[${arr.join(',')}]`, expectedOutput: `"${expected}"` });
+    maxProductTC.push({ 
+      input: `[${arr.join(',')}]`, 
+      cppInput: `${arr.length} ${arr.join(' ')}`,
+      expectedOutput: `"${expected}"` 
+    });
   }
 
   // Question 2: Balloons
   const balloonsTC = [
-    { input: '"nlaebolko"', expectedOutput: '"1"' },
-    { input: '"loonbalxballpoon"', expectedOutput: '"2"' },
-    { input: '"leetcode"', expectedOutput: '"0"' },
-    { input: '"balloonballoonballoon"', expectedOutput: '"3"' },
-    { input: '"bbaallllooooonn"', expectedOutput: '"2"' },
-    { input: '"bbaallllooonn"', expectedOutput: '"1"' }, 
-    { input: '"b"', expectedOutput: '"0"' },
-    { input: '"balon"', expectedOutput: '"0"' },
-    { input: '"balloonballoon"', expectedOutput: '"2"' },
-    { input: '"balloonballoonb"', expectedOutput: '"2"' },
-    { input: '"bbaallllooooonnballoon"', expectedOutput: '"3"' },
-    { input: '"xxyyzz"', expectedOutput: '"0"' },
-    { input: '"ballooooon"', expectedOutput: '"1"' },
-    { input: '"balllloon"', expectedOutput: '"1"' },
-    { input: '"bbbaaabbbllllooooonnnn"', expectedOutput: '"2"' } 
+    { input: '"nlaebolko"', cppInput: 'nlaebolko', expectedOutput: '"1"' },
+    { input: '"loonbalxballpoon"', cppInput: 'loonbalxballpoon', expectedOutput: '"2"' },
+    { input: '"leetcode"', cppInput: 'leetcode', expectedOutput: '"0"' },
+    { input: '"balloonballoonballoon"', cppInput: 'balloonballoonballoon', expectedOutput: '"3"' },
+    { input: '"bbaallllooooonn"', cppInput: 'bbaallllooooonn', expectedOutput: '"2"' },
+    { input: '"bbaallllooonn"', cppInput: 'bbaallllooonn', expectedOutput: '"1"' }, 
+    { input: '"b"', cppInput: 'b', expectedOutput: '"0"' },
+    { input: '"balon"', cppInput: 'balon', expectedOutput: '"0"' },
+    { input: '"balloonballoon"', cppInput: 'balloonballoon', expectedOutput: '"2"' },
+    { input: '"balloonballoonb"', cppInput: 'balloonballoonb', expectedOutput: '"2"' },
+    { input: '"bbaallllooooonnballoon"', cppInput: 'bbaallllooooonnballoon', expectedOutput: '"3"' },
+    { input: '"xxyyzz"', cppInput: 'xxyyzz', expectedOutput: '"0"' },
+    { input: '"ballooooon"', cppInput: 'ballooooon', expectedOutput: '"1"' },
+    { input: '"balllloon"', cppInput: 'balllloon', expectedOutput: '"1"' },
+    { input: '"bbbaaabbbllllooooonnnn"', cppInput: 'bbbaaabbbllllooooonnnn', expectedOutput: '"2"' } 
   ];
 
   // Question 3: Two Sum
@@ -44,30 +49,50 @@ async function main() {
   for(let i=0; i<15; i++) {
     const target = 10 + i;
     const arr = [1, 2, 3, target-3, target+1]; 
-    twoSumTC.push({ input: `[${arr.join(',')}], ${target}`, expectedOutput: '"[2,3]"' });
+    twoSumTC.push({ 
+      input: `[${arr.join(',')}], ${target}`, 
+      cppInput: `${arr.length} ${arr.join(' ')} ${target}`,
+      expectedOutput: '"[2,3]"' 
+    });
   }
 
   // Question 4: Valid Palindrome
   const isPal = (s: string) => s === s.split('').reverse().join('');
   const palStrs = ["racecar", "hello", "level", "world", "madam", "civic", "redlix", "radar", "kayak", "rotor", "apple", "refer", "banana", "deified", "stats"];
-  const palTC = palStrs.map(s => ({ input: `"${s}"`, expectedOutput: `"${isPal(s)}"` }));
+  const palTC = palStrs.map(s => ({ 
+    input: `"${s}"`, 
+    cppInput: `${s}`,
+    expectedOutput: `"${isPal(s)}"` 
+  }));
 
   // Question 5: Reverse String
   const revStrs = ["hello", "world", "redlix", "javascript", "typescript", "coding", "sprint", "hackathon", "abc", "xyz", "qwerty", "asdf", "zxcv", "test", "case"];
-  const revTC = revStrs.map(s => ({ input: `"${s}"`, expectedOutput: `"${s.split('').reverse().join('')}"` }));
+  const revTC = revStrs.map(s => ({ 
+    input: `"${s}"`, 
+    cppInput: `${s}`,
+    expectedOutput: `"${s.split('').reverse().join('')}"` 
+  }));
 
   // Question 6: Find Minimum Element
   const minTC = [];
   for(let i=0; i<15; i++) {
     const arr = Array.from({length: 6}, () => Math.floor(Math.random()*100)-50);
     const expected = Math.min(...arr);
-    minTC.push({ input: `[${arr.join(',')}]`, expectedOutput: `"${expected}"` });
+    minTC.push({ 
+      input: `[${arr.join(',')}]`, 
+      cppInput: `${arr.length} ${arr.join(' ')}`,
+      expectedOutput: `"${expected}"` 
+    });
   }
 
   // Question 7: Count Vowels
   const countVowels = (s: string) => (s.match(/[aeiouAEIOU]/g) || []).length;
   const vowelStrs = ["hello", "world", "education", "apple", "banana", "rhythm", "sky", "aeiou", "AEIOU", "bcdfg", "redlix", "sprint", "hackathon", "test", "case"];
-  const vowelTC = vowelStrs.map(s => ({ input: `"${s}"`, expectedOutput: `"${countVowels(s)}"` }));
+  const vowelTC = vowelStrs.map(s => ({ 
+    input: `"${s}"`, 
+    cppInput: `${s}`,
+    expectedOutput: `"${countVowels(s)}"` 
+  }));
 
   // Question 8: Fizz Buzz (Algorithmic)
   const fizzBuzzTC = [];
@@ -80,7 +105,11 @@ async function main() {
       else if (j%5===0) expected.push("Buzz");
       else expected.push(j.toString());
     }
-    fizzBuzzTC.push({ input: `${n}`, expectedOutput: JSON.stringify(expected) });
+    fizzBuzzTC.push({ 
+      input: `${n}`, 
+      cppInput: `${n}`,
+      expectedOutput: JSON.stringify(expected) 
+    });
   }
 
   // Question 9: SQL Second Highest Salary
