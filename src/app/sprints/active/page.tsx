@@ -658,7 +658,9 @@ function SprintActiveContent() {
                       {questions[activeCodeQIndex].testCases?.slice(0, 2).map((tc: any, i: number) => (
                         <div key={i} className="space-y-2">
                           <h4 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Sample Input {i}</h4>
-                          <div className="p-4 bg-white rounded-lg border border-red-200 font-mono text-[12px] text-zinc-800 whitespace-pre-wrap">{tc.input}</div>
+                          <div className="p-4 bg-white rounded-lg border border-red-200 font-mono text-[12px] text-zinc-800 whitespace-pre-wrap">
+                            {(["c", "cpp", "java"].includes(selectedLang.id) && tc.cppInput) ? tc.cppInput : tc.input}
+                          </div>
                           <h4 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mt-4">Sample Output {i}</h4>
                           <div className="p-4 bg-white rounded-lg border border-red-200 font-mono text-[12px] text-zinc-800 whitespace-pre-wrap">{tc.expectedOutput}</div>
                         </div>
