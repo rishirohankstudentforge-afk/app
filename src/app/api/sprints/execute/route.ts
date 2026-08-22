@@ -104,7 +104,10 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             language: pistonLang,
             version,
-            files: [{ content: wrappedCode }],
+            files: [{ 
+              name: language === "java" ? "Main.java" : language === "cpp" ? "main.cpp" : language === "c" ? "main.c" : undefined,
+              content: wrappedCode 
+            }],
             stdin: String(sanitizedStdin),
             compile_timeout: 10000,
             run_timeout: 3000
