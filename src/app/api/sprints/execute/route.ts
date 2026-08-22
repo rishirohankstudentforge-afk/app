@@ -89,9 +89,11 @@ export async function POST(req: Request) {
       for (let i = 0; i < testCases.length; i++) {
         const tc = testCases[i];
         
-        // Clean up input for Java/C/C++ Standard I/O (e.g. "12, 30" -> "12  30")
-        // This allows Scanner.nextInt() to work without custom delimiters.
-        let cpStdin = String(tc.input || "").replace(/[,\[\]]/g, " ");
+        // For Java, C, and C++, inputs are usually space-separated and without brackets/commas/quotes in standard CP platforms.
+        // We strip commas, square brackets, and double quotes to make it easier for them to use Scanner / cin.
+        const sanitizedStdin = typeof tc.input === 'string'
+          ? tc.input.replace(/[,\[\]"]/g, ' ')
+          : tc.input;
 
         const response = await fetch(PISTON_URL, {
           method: "POST",
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
             language: pistonLang,
             version,
             files: [{ content: wrappedCode }],
-            stdin: cpStdin,
+            stdin: String(sanitizedStdin),
             compile_timeout: 10000,
             run_timeout: 3000
           })

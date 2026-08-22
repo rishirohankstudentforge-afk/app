@@ -13,6 +13,7 @@ const LANGUAGES = [
   { id: "python", label: "Python 3", ext: "py", monoLabel: "python" },
   { id: "java", label: "Java", ext: "java", monoLabel: "java" },
   { id: "cpp", label: "C++", ext: "cpp", monoLabel: "cpp" },
+  { id: "c", label: "C", ext: "c", monoLabel: "c" },
   { id: "typescript", label: "TypeScript", ext: "ts", monoLabel: "typescript" },
   { id: "sql", label: "SQL", ext: "sql", monoLabel: "sql" },
   { id: "html", label: "HTML/Frontend", ext: "html", monoLabel: "html" },
@@ -111,7 +112,7 @@ function SprintActiveContent() {
           if (typeof parsed === "string") parsed = JSON.parse(parsed);
           const type = parsed.type || "coding";
           setQuestionType(type);
-          const list = parsed.list || [];
+          const list = Array.isArray(parsed) ? parsed : (parsed.list || []);
           setQuestions(list);
 
           if (type === "coding") {
@@ -239,8 +240,40 @@ function SprintActiveContent() {
     return () => clearInterval(timer);
   }, [sprint, isLocked, isSubmitted, isPaused]);
 
-  // Redundant fullscreen listener removed
+  // Snapshot Uploader Loop
+  useEffect(() => {
+    if (isSubmitted || isLocked || !sprint?.id || !participantId) return;
+    
+    const uploader = setInterval(async () => {
+      try {
+        const video = videoRef.current;
+        if (!video || !video.videoWidth) return;
 
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Compress heavily for real-time performance
+          const snapshot = canvas.toDataURL("image/jpeg", 0.3);
+          
+          await fetch(`/api/sprints/participants`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: participantId,
+              latestSnapshot: snapshot
+            })
+          });
+        }
+      } catch (e) {
+        // ignore intermittent capture errors
+      }
+    }, 5000);
+
+    return () => clearInterval(uploader);
+  }, [sprint?.id, participantId, isLocked, isSubmitted]);
   const issueWarning = async (reason: string, forceLock = false) => {
     if (isLocked || isSubmitted || !sprint || !participantId) return;
     try {

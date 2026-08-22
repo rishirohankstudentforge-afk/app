@@ -51,20 +51,24 @@ _run_tests()
 `;
   } else if (lang === "typescript") {
     wrapped = `
+${userCode}
 function _runTests() {
     let results = [];
-    let testCases;
-    try { testCases = JSON.parse(\`${testCases}\`); } catch(e) { return; }
-    let solution = undefined;
-    try { eval(\`${userCode}\`); } catch(err) { return; }
+    let testCases = ${JSON.stringify(testCases)};
     for (let i = 0; i < testCases.length; i++) {
         const tc = testCases[i];
         try {
-            let args = [];
-            eval("args = [" + tc.input + "];");
+            let args = eval("[" + tc.input + "]");
             let actual = solution.apply(null, args);
             let actualJson = JSON.stringify(actual);
-            results.push({ c: tc.caseIndex, s: 0, e: String(tc.expectedOutput).substring(0, 30), a: String(actualJson).substring(0, 30) });
+            let expectedJson = JSON.stringify(JSON.parse(tc.expectedOutput));
+            let passed = (actualJson === expectedJson);
+            results.push({ 
+                c: tc.caseIndex, 
+                s: passed ? 1 : 0, 
+                e: String(tc.expectedOutput).substring(0, 30), 
+                a: String(actualJson).substring(0, 30) 
+            });
         } catch(err) {
             results.push({ c: tc.caseIndex, s: 0, err: err.toString().substring(0, 20) });
         }
