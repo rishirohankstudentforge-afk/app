@@ -1,38 +1,48 @@
-// Global in-memory OTP store for email verification
-interface OtpRecord {
-  otp: string;
-  expiresAt: number;
-}
+import { prisma } from "./prisma";
 
-const globalForOtp = global as unknown as { otpStore: Map<string, OtpRecord> };
-
-export const otpStore = globalForOtp.otpStore || new Map<string, OtpRecord>();
-
-if (process.env.NODE_ENV !== "production") globalForOtp.otpStore = otpStore;
-
-export function generateAndSaveOtp(email: string): string {
+export async function generateAndSaveOtp(email: string): Promise<string> {
   const cleanEmail = email.trim().toLowerCase();
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
 
-  otpStore.set(cleanEmail, { otp, expiresAt });
+  // Clear previous OTPs for this email to prevent spam/confusion
+  await prisma.candidateOtp.deleteMany({
+    where: { email: cleanEmail }
+  });
+
+  await prisma.candidateOtp.create({
+    data: {
+      email: cleanEmail,
+      otp,
+      expiresAt
+    }
+  });
+  
   return otp;
 }
 
-export function verifyOtp(email: string, inputOtp: string): boolean {
+export async function verifyOtp(email: string, inputOtp: string): Promise<boolean> {
   const cleanEmail = email.trim().toLowerCase();
-  const record = otpStore.get(cleanEmail);
+  
+  const record = await prisma.candidateOtp.findFirst({
+    where: { 
+      email: cleanEmail,
+      otp: inputOtp.trim()
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 
   if (!record) return false;
-  if (Date.now() > record.expiresAt) {
-    otpStore.delete(cleanEmail);
+
+  if (new Date() > record.expiresAt) {
+    await prisma.candidateOtp.delete({ where: { id: record.id } });
     return false;
   }
 
-  if (record.otp === inputOtp.trim()) {
-    // Optionally delete once verified
-    return true;
-  }
+  // Delete all OTPs for this email after successful verification
+  await prisma.candidateOtp.deleteMany({
+    where: { email: cleanEmail }
+  });
 
-  return false;
+  return true;
 }

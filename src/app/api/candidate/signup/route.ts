@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Verify OTP first
     const { verifyOtp } = await import("@/lib/otpStore");
-    const isOtpValid = verifyOtp(cleanEmail, otp);
+    const isOtpValid = await verifyOtp(cleanEmail, otp);
     if (!isOtpValid) {
       return NextResponse.json({ success: false, error: "OTP verification failed or expired" }, { status: 400 });
     }

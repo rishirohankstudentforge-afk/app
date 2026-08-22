@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const otp = generateAndSaveOtp(cleanEmail);
+    const otp = await generateAndSaveOtp(cleanEmail);
 
     // Send OTP email via Resend API
     const emailResult = await sendEmail({

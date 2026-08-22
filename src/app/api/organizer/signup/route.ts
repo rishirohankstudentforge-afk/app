@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const cleanEmail = email.trim().toLowerCase();
 
     // Verify OTP first
-    const isOtpValid = verifyOtp(cleanEmail, otp);
+    const isOtpValid = await verifyOtp(cleanEmail, otp);
     if (!isOtpValid) {
       return NextResponse.json({ success: false, error: "OTP verification failed or expired" }, { status: 400 });
     }
